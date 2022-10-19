@@ -38,6 +38,10 @@
 #include "myfs-info.h"
 #include "blockdevice.h"
 
+///@brief Array of files in MyInMemoryFS
+MyFsFile directory[NUM_DIR_ENTRIES];
+
+
 /// @brief Constructor of the in-memory file system class.
 ///
 /// You may add your own constructor code here.
@@ -51,8 +55,12 @@ MyInMemoryFS::MyInMemoryFS() : MyFS() {
 ///
 /// You may add your own destructor code here.
 MyInMemoryFS::~MyInMemoryFS() {
-
     // TODO: [PART 1] Add your cleanup code here
+    for (int i = 0; i < sizeof(folder) / sizeof(MyFsFile); i++) {
+        free(files[i].data);
+        files[i].size = 0;
+    }
+
 
 }
 
@@ -114,7 +122,7 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
 
     // TODO: [PART 1] Implement this!
 
-    LOGF( "\tAttributes of %s requested\n", path );
+    LOGF("\tAttributes of %s requested\n", path);
 
     // GNU's definitions of the attributes (http://www.gnu.org/software/libc/manual/html_node/Attribute-Meanings.html):
     // 		st_uid: 	The user ID of the file’s owner.
@@ -133,24 +141,20 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
 
     statbuf->st_uid = getuid(); // The owner of the file/directory is the user who mounted the filesystem
     statbuf->st_gid = getgid(); // The group of the file/directory is the same as the group of the user who mounted the filesystem
-    statbuf->st_atime = time( NULL ); // The last "a"ccess of the file/directory is right now
-    statbuf->st_mtime = time( NULL ); // The last "m"odification of the file/directory is right now
+    statbuf->st_atime = time(NULL); // The last "a"ccess of the file/directory is right now
+    statbuf->st_mtime = time(NULL); // The last "m"odification of the file/directory is right now
 
-    int ret= 0;
+    int ret = 0;
 
-    if ( strcmp( path, "/" ) == 0 )
-    {
+    if (strcmp(path, "/") == 0) {
         statbuf->st_mode = S_IFDIR | 0755;
         statbuf->st_nlink = 2; // Why "two" hardlinks instead of "one"? The answer is here: http://unix.stackexchange.com/a/101536
-    }
-    else if ( strcmp( path, "/file54" ) == 0 || ( strcmp( path, "/file349" ) == 0 ) )
-    {
+    } else if (strcmp(path, "/file54") == 0 || (strcmp(path, "/file349") == 0)) {
         statbuf->st_mode = S_IFREG | 0644;
         statbuf->st_nlink = 1;
         statbuf->st_size = 1024;
-    }
-    else
-        ret= -ENOENT;
+    } else
+        ret = -ENOENT;
 
     RETURN(ret);
 }
@@ -221,10 +225,9 @@ int MyInMemoryFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
 /// -ERRNO on failure.
 int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
     LOGM();
-
     // TODO: [PART 1] Implement this!
 
-    LOGF( "--> Trying to read %s, %lu, %lu\n", path, (unsigned long) offset, size );
+    LOGF("--> Trying to read %s, %lu, %lu\n", path, (unsigned long) offset, size);
 
     char file54Text[] = "Hello World From File54!\n";
     char file349Text[] = "Hello World From File349!\n";
@@ -232,18 +235,18 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
 
     // ... //
 
-    if ( strcmp( path, "/file54" ) == 0 )
+    if (strcmp(path, "/file54") == 0)
         selectedText = file54Text;
-    else if ( strcmp( path, "/file349" ) == 0 )
+    else if (strcmp(path, "/file349") == 0)
         selectedText = file349Text;
     else
         return -ENOENT;
 
     // ... //
 
-    memcpy( buf, selectedText + offset, size );
+    memcpy(buf, selectedText + offset, size);
 
-    RETURN((int) (strlen( selectedText ) - offset));
+    RETURN((int) (strlen(selectedText) - offset));
 }
 
 /// @brief Write to a file.
@@ -261,7 +264,8 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
 /// the file.
 /// \param [in] fileInfo Can be ignored in Part 1 .
 /// \return Number of bytes written on success, -ERRNO on failure.
-int MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
+int
+MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
     LOGM();
 
     // TODO: [PART 1] Implement this!
@@ -327,20 +331,22 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize, struct fuse_file
 /// \param [in] offset Can be ignored.
 /// \param [in] fileInfo Can be ignored.
 /// \return 0 on success, -ERRNO on failure.
-int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fileInfo) {
+int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
+                              struct fuse_file_info *fileInfo) {
     LOGM();
 
     // TODO: [PART 1] Implement this!
 
-    LOGF( "--> Getting The List of Files of %s\n", path );
+    LOGF("--> Getting The List of Files of %s\n", path);
 
-    filler( buf, ".", NULL, 0 ); // Current Directory
-    filler( buf, "..", NULL, 0 ); // Parent Directory
+    filler(buf, ".", NULL, 0); // Current Directory
+    filler(buf, "..", NULL, 0); // Parent Directory
 
-    if ( strcmp( path, "/" ) == 0 ) // If the user is trying to show the files/directories of the root directory show the following
+    if (strcmp(path, "/") ==
+        0) // If the user is trying to show the files/directories of the root directory show the following
     {
-        filler( buf, "file54", NULL, 0 );
-        filler( buf, "file349", NULL, 0 );
+        filler(buf, "file54", NULL, 0);
+        filler(buf, "file349", NULL, 0);
     }
 
     RETURN(0);
@@ -351,10 +357,10 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
 /// This function is called when the file system is mounted. You may add some initializing code here.
 /// \param [in] conn Can be ignored.
 /// \return 0.
-void* MyInMemoryFS::fuseInit(struct fuse_conn_info *conn) {
+void *MyInMemoryFS::fuseInit(struct fuse_conn_info *conn) {
     // Open logfile
-    this->logFile= fopen(((MyFsInfo *) fuse_get_context()->private_data)->logFile, "w+");
-    if(this->logFile == NULL) {
+    this->logFile = fopen(((MyFsInfo *) fuse_get_context()->private_data)->logFile, "w+");
+    if (this->logFile == NULL) {
         fprintf(stderr, "ERROR: Cannot open logfile %s\n", ((MyFsInfo *) fuse_get_context()->private_data)->logFile);
     } else {
         // turn of logfile buffering
@@ -388,6 +394,6 @@ void MyInMemoryFS::fuseDestroy() {
 ///
 /// Do not edit this method!
 void MyInMemoryFS::SetInstance() {
-    MyFS::_instance= new MyInMemoryFS();
+    MyFS::_instance = new MyInMemoryFS();
 }
 

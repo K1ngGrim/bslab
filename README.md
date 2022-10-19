@@ -6,7 +6,7 @@ zum Labor.
 Wenn die notwendige Arbeitsumgebung eingerichtet wurde, sollte sich das Template-Projekt korrekt übersetzen lassen und 
 dann die Funktionalität des 
 [_Simple & Stupid File Systems_](http://www.maastaar.net/fuse/linux/filesystem/c/2016/05/21/writing-a-simple-filesystem-using-fuse/) 
-bereitstellen. Das lässt sich mit den folgenden Kommandos ausprobieren (dabei 
+bereitstellen. Das lässt sich mit den folgenden Kommandos ausprobieren (dabei cd 
 `<pfad-zum-dateisystem>` durch das Verzeichnis mit dem Template ersetzen):
 
 	mkdir build
