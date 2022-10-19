@@ -1,10 +1,10 @@
 //
-//  myfs-structs.h
-//  myfs
+///  myfs-structs.h
+///  myfs
 //
-//  Created by Oliver Waldhorst on 07.09.17.
-//  Copyright © 2017 Oliver Waldhorst. All rights reserved.
-//
+///  Created by Oliver Waldhorst on 07.09.17.
+///  Copyright © 2017 Oliver Waldhorst. All rights reserved.
+///
 
 #ifndef myfs_structs_h
 #define myfs_structs_h
@@ -15,5 +15,9 @@
 #define NUM_OPEN_FILES 64
 
 // TODO: Add structures of your file system here
+
+struct file {
+
+};
 
 #endif /* myfs_structs_h */
