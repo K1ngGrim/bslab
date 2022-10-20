@@ -56,9 +56,9 @@ MyInMemoryFS::MyInMemoryFS() : MyFS() {
 /// You may add your own destructor code here.
 MyInMemoryFS::~MyInMemoryFS() {
     // TODO: [PART 1] Add your cleanup code here
-    for (int i = 0; i < sizeof(folder) / sizeof(MyFsFile); i++) {
-        free(files[i].data);
-        files[i].size = 0;
+    for (int i = 0; i < sizeof(directory) / sizeof(MyFsFile); i++) {
+        free(directory[i].data);
+        directory[i].size = 0;
     }
 
 

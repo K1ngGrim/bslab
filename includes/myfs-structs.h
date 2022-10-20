@@ -6,7 +6,7 @@
 ///  Copyright © 2017 Oliver Waldhorst. All rights reserved.
 ///
 
-#include <stat.h>
+#include <sys/stat.h>
 
 #ifndef myfs_structs_h
 #define myfs_structs_h
@@ -34,12 +34,12 @@
 struct MyFsFile {
     char name[NAME_LENGTH];
     size_t size;
-    st_mode mode;
+    mode_t mode;
     uid_t user_id;
     gid_t group_id;
-    st_atime atime;
-    st_mtime mtime;
-    st_ctime ctime;
+    time_t atime;
+    time_t mtime;
+    time_t ctime;
 //TODO: In Blöcke einteilen
     // Achtung: Hat keinen Nullterminator!
     char* data;
