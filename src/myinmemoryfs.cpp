@@ -377,14 +377,7 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
         for(auto file: directory) {
             if(strcmp(file.name, "") != 0) {
 
-                stat.st_mode = file.mode;
-                stat.st_size = file.size;
-                stat.st_uid = file.user_id;
-                stat.st_gid = file.group_id;
-                stat.st_atime = file.atime;
-                stat.st_ctime = file.ctime;
-                stat.st_mtime = file.mtime;
-                stat.st_nlink = 1;
+                fuseGetattr(path, &stat);
                 filler(buf, file.name, &stat, 0);
             }
         }
