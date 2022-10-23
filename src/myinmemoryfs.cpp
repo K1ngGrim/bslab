@@ -41,7 +41,7 @@
 ///@brief Array of files in MyInMemoryFS
 MyFsFile directory[NUM_DIR_ENTRIES];
 
-boolean_t containsFile(const char searched[]) {
+bool containsFile(const char searched[]) {
     for(auto &file : directory) {
         if(strcmp(file.name, searched) == 0) {
             return true;
