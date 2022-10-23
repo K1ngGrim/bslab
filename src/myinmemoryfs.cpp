@@ -93,18 +93,29 @@ MyInMemoryFS::~MyInMemoryFS() {
 int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     LOGM();
 
+    LOGF("Try to create a File with the name %s!\n", path+1);
+    int result = 0;
     // TODO: [PART 1] Implement this!
+
     for(auto &file : directory) {
+        if(strcmp(file.name, path+1) == 0 || strlen(path+1) > NAME_LENGTH) {
+            result = -EEXIST;
+            break;
+        }
         if(file.size == 0) {
             ///Generate a new File on first Empty place
-            memccpy(file.name, path+1, 0, sizeof(path+1));
+            strcpy(file.name, path+1);
             file.size = 1024;
             file.data = static_cast<char *>(malloc(file.size));
-            RETURN(0);
+            file.mode = mode; ///Necessary for generating a File
+            file.group_id = getgid();
+            file.user_id = getuid();
+            LOGF("File name: %s\n", file.name);
+            break;
         }
     }
 
-    RETURN(0);
+    RETURN(result);
 }
 
 /// @brief Delete a file.

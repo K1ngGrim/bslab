@@ -8,6 +8,7 @@
 
 #include <sys/stat.h>
 #include <cstdio>
+#include <ctime>
 
 #ifndef myfs_structs_h
 #define myfs_structs_h
@@ -39,9 +40,10 @@ public:
     mode_t mode;
     uid_t user_id;
     gid_t group_id;
-    time_t atime;
-    time_t mtime;
-    time_t ctime;
+    nlink_t link = 1;
+    time_t atime = time(NULL);
+    time_t mtime = time(NULL);
+    time_t ctime = time(NULL);
 
 
 //TODO: In Blöcke einteilen Später
