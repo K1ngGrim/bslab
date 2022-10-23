@@ -56,6 +56,12 @@ void MyFsFile::setMode(mode_t mode) {
     this->mode = mode;
 }
 
-char *MyFsFile::Data() {
-    return this->data;
+char *MyFsFile::getName() {
+    return this->name;
+}
+
+void MyFsFile::setName(char name[NAME_LENGTH]) {
+    for(int i = 0; i< NAME_LENGTH; i++) {
+        this->name[i] = name[i];
+    }
 }

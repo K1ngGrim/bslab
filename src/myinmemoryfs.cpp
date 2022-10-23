@@ -41,6 +41,24 @@
 ///@brief Array of files in MyInMemoryFS
 MyFsFile directory[NUM_DIR_ENTRIES];
 
+boolean_t containsFile(const char searched[]) {
+    for(auto &file : directory) {
+        if(strcmp(file.name, searched) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+MyFsFile FileByName(const char name[]) {
+    for(auto file : directory) {
+        if(strcmp(file.name, name) == 0) {
+            return file;
+        }
+    }
+    return {};
+}
+
 
 /// @brief Constructor of the in-memory file system class.
 ///
@@ -49,6 +67,12 @@ MyInMemoryFS::MyInMemoryFS() : MyFS() {
 
     // TODO: [PART 1] Add your constructor code here
 
+    char name[NAME_LENGTH] = "Test";
+    memccpy(directory[0].name, name, 0,sizeof name);
+    directory[0].mode = (S_IFDIR | 0755);
+    directory[0].mtime = (time(NULL));
+    directory[0].size = 1024;
+
 }
 
 /// @brief Destructor of the in-memory file system class.
@@ -56,12 +80,6 @@ MyInMemoryFS::MyInMemoryFS() : MyFS() {
 /// You may add your own destructor code here.
 MyInMemoryFS::~MyInMemoryFS() {
     // TODO: [PART 1] Add your cleanup code here
-    for (auto & i : directory) {
-        free(i.Data());
-        i.setSize(0);
-    }
-
-
 }
 
 /// @brief Create a new file.
@@ -76,6 +94,15 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     LOGM();
 
     // TODO: [PART 1] Implement this!
+    for(auto &file : directory) {
+        if(file.size == 0) {
+            ///Generate a new File on first Empty place
+            memccpy(file.name, path+1, 0, sizeof(path+1));
+            file.size = 1024;
+            file.data = static_cast<char *>(malloc(file.size));
+            RETURN(0);
+        }
+    }
 
     RETURN(0);
 }
@@ -120,8 +147,6 @@ int MyInMemoryFS::fuseRename(const char *path, const char *newpath) {
 int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
     LOGM();
 
-    // TODO: [PART 1] Implement this!
-
     LOGF("\tAttributes of %s requested\n", path);
 
     // GNU's definitions of the attributes (http://www.gnu.org/software/libc/manual/html_node/Attribute-Meanings.html):
@@ -149,11 +174,17 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
     if (strcmp(path, "/") == 0) {
         statbuf->st_mode = S_IFDIR | 0755;
         statbuf->st_nlink = 2; // Why "two" hardlinks instead of "one"? The answer is here: http://unix.stackexchange.com/a/101536
-    } else if (strcmp(path, "/file54") == 0 || (strcmp(path, "/file349") == 0)) {
-        statbuf->st_mode = S_IFREG | 0644;
+    }else if (containsFile(path + 1)){
+        MyFsFile file = FileByName(path + 1);
+        statbuf->st_mode = file.mode;
+        statbuf->st_size = file.size;
+        statbuf->st_uid = file.user_id;
+        statbuf->st_gid = file.group_id;
+        statbuf->st_atime = file.atime;
+        statbuf->st_ctime = file.ctime;
+        statbuf->st_mtime = file.mtime;
         statbuf->st_nlink = 1;
-        statbuf->st_size = 1024;
-    } else
+    }else
         ret = -ENOENT;
 
     RETURN(ret);
@@ -334,19 +365,29 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize, struct fuse_file
 int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
                               struct fuse_file_info *fileInfo) {
     LOGM();
-
-    // TODO: [PART 1] Implement this!
-
     LOGF("--> Getting The List of Files of %s\n", path);
 
     filler(buf, ".", NULL, 0); // Current Directory
     filler(buf, "..", NULL, 0); // Parent Directory
+    struct stat stat = {};
 
     if (strcmp(path, "/") ==
         0) // If the user is trying to show the files/directories of the root directory show the following
     {
-        filler(buf, "file54", NULL, 0);
-        filler(buf, "file349", NULL, 0);
+        for(auto file: directory) {
+            if(strcmp(file.name, "") != 0) {
+
+                stat.st_mode = file.mode;
+                stat.st_size = file.size;
+                stat.st_uid = file.user_id;
+                stat.st_gid = file.group_id;
+                stat.st_atime = file.atime;
+                stat.st_ctime = file.ctime;
+                stat.st_mtime = file.mtime;
+                stat.st_nlink = 1;
+                filler(buf, file.name, &stat, 0);
+            }
+        }
     }
 
     RETURN(0);
@@ -382,8 +423,10 @@ void *MyInMemoryFS::fuseInit(struct fuse_conn_info *conn) {
 void MyInMemoryFS::fuseDestroy() {
     LOGM();
 
-    // TODO: [PART 1] Implement this!
-
+    for (auto & i : directory) {
+        free(i.data);
+        i.size = 0;
+    }
 }
 
 // TODO: [PART 1] You may add your own additional methods here!

@@ -1,0 +1,70 @@
+	Starting logging...
+
+	Using in-memory mode
+fuseInit() returned 0
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myinmemoryfs.cpp:143:fuseGetattr()
+		Attributes of / requested
+
+fuseGetattr() returned 0
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:215:fuseGetxattr()
+fuseGetxattr() returned 0
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:215:fuseGetxattr()
+fuseGetxattr() returned 0
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:215:fuseGetxattr()
+fuseGetxattr() returned 0
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myinmemoryfs.cpp:143:fuseGetattr()
+		Attributes of /.hidden requested
+
+fuseGetattr() returned -2
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myinmemoryfs.cpp:143:fuseGetattr()
+		Attributes of /.DS_Store requested
+
+fuseGetattr() returned -2
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myinmemoryfs.cpp:143:fuseGetattr()
+		Attributes of /.DS_Store requested
+
+fuseGetattr() returned -2
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:215:fuseGetxattr()
+fuseGetxattr() returned 0
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:215:fuseGetxattr()
+fuseGetxattr() returned 0
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:215:fuseGetxattr()
+fuseGetxattr() returned 0
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:215:fuseGetxattr()
+fuseGetxattr() returned 0
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:215:fuseGetxattr()
+fuseGetxattr() returned 0
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:215:fuseGetxattr()
+fuseGetxattr() returned 0
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:215:fuseGetxattr()
+fuseGetxattr() returned 0
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:215:fuseGetxattr()
+fuseGetxattr() returned 0
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:215:fuseGetxattr()
+fuseGetxattr() returned 0
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myfs.cpp:148:fuseStatfs()
+/Users/flo/Workspace/Hochschule/Semester_03/Betriebssysteme Labor/bslab/src/myinmemoryfs.cpp:414:fuseDestroy()

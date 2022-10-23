@@ -33,8 +33,8 @@
  * @param data content of the file
  */
 struct MyFsFile {
-private:
-    char name[NAME_LENGTH];
+public:
+    char name[NAME_LENGTH] = "";
     size_t size;
     mode_t mode;
     uid_t user_id;
@@ -46,9 +46,15 @@ private:
 
 //TODO: In Blöcke einteilen Später
     // Achtung: Hat keinen Nullterminator!
+
+
+
     char* data;
 
-public:
+
+    char* getName();
+    void setName(char name[NAME_LENGTH]);
+
     size_t getSize();
     void setSize(size_t size);
 
@@ -69,8 +75,6 @@ public:
 
     time_t getCTime();
     void setCTime(time_t cTime);
-
-    char* Data();
 };
 
 #endif /* myfs_structs_h */
