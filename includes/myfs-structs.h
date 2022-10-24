@@ -48,11 +48,7 @@ public:
 
 //TODO: In Blöcke einteilen Später
     // Achtung: Hat keinen Nullterminator!
-
-
-
     char* data;
-
 
     char* getName();
     void setName(char name[NAME_LENGTH]);
@@ -77,6 +73,13 @@ public:
 
     time_t getCTime();
     void setCTime(time_t cTime);
+};
+
+class MyFsDirectory {
+public:
+    MyFsFile directory[NUM_DIR_ENTRIES] = {};
+    int addFile(MyFsFile newFile);
+    bool contains(const char searched[], MyFsFile* result = nullptr);
 };
 
 #endif /* myfs_structs_h */

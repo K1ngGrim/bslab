@@ -65,3 +65,28 @@ void MyFsFile::setName(char name[NAME_LENGTH]) {
         this->name[i] = name[i];
     }
 }
+
+/*!
+ * @brief Searches the directory for a file named @param: searched
+ * @param searched Searched File's name
+ * @param result Optional Pointer of Searched File
+ * @return bool found = true, not found = false
+ */
+bool MyFsDirectory::contains(const char *searched, MyFsFile *result) {
+    for(auto &file : directory) {
+        if(strcmp(file.name, searched) == 0) {
+            result = &file;
+            return true;
+        }
+    }
+    return false;
+}
+
+/*!
+ * Adds a File to current Directory
+ * @param newFile
+ * @return Success-code, 0 on success
+ */
+int MyFsDirectory::addFile(MyFsFile newFile) {
+    return 0;
+}

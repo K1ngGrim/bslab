@@ -30,33 +30,27 @@
 #define DEBUG_RETURN_VALUES
 
 #include <unistd.h>
-#include <string.h>
-#include <errno.h>
+#include <cstring>
+#include <cerrno>
 
 #include "macros.h"
 #include "myfs.h"
 #include "myfs-info.h"
 #include "blockdevice.h"
+#include "myfs-structs.h"
 
-///@brief Array of files in MyInMemoryFS
-MyFsFile directory[NUM_DIR_ENTRIES];
+//MyFsDirectory directory = MyFsDirectory();
+//MyFsFile *dir = directory.directory;
+MyFsFile dir[NUM_DIR_ENTRIES] = {};
 
-bool containsFile(const char searched[]) {
-    for(auto &file : directory) {
+bool contains(const char *searched, MyFsFile *result) {
+    for(auto &file : dir) {
         if(strcmp(file.name, searched) == 0) {
+            result = &file;
             return true;
         }
     }
     return false;
-}
-
-MyFsFile FileByName(const char name[]) {
-    for(auto file : directory) {
-        if(strcmp(file.name, name) == 0) {
-            return file;
-        }
-    }
-    return {};
 }
 
 
@@ -68,11 +62,13 @@ MyInMemoryFS::MyInMemoryFS() : MyFS() {
     // TODO: [PART 1] Add your constructor code here
 
     char name[NAME_LENGTH] = "Test";
-    memccpy(directory[0].name, name, 0,sizeof name);
-    directory[0].mode = (S_IFDIR | 0755);
-    directory[0].mtime = (time(NULL));
-    directory[0].size = 1024;
+    memccpy(dir[0].name, name, 0,sizeof name);
 
+    dir[0].mode = (S_IFDIR | 0755);
+    dir[0].mtime = (time(NULL));
+    dir[0].size = 1024;
+
+    LOGF("Init FS: %s\n",dir[0].name);
 }
 
 /// @brief Destructor of the in-memory file system class.
@@ -95,9 +91,8 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
 
     LOGF("Try to create a File with the name %s!\n", path+1);
     int result = 0;
-    // TODO: [PART 1] Implement this!
 
-    for(auto &file : directory) {
+    for(auto &file : dir) {
         if(strcmp(file.name, path+1) == 0 || strlen(path+1) > NAME_LENGTH) {
             result = -EEXIST;
             break;
@@ -181,19 +176,19 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
     statbuf->st_mtime = time(NULL); // The last "m"odification of the file/directory is right now
 
     int ret = 0;
+    MyFsFile *file;
 
     if (strcmp(path, "/") == 0) {
         statbuf->st_mode = S_IFDIR | 0755;
         statbuf->st_nlink = 2; // Why "two" hardlinks instead of "one"? The answer is here: http://unix.stackexchange.com/a/101536
-    }else if (containsFile(path + 1)){
-        MyFsFile file = FileByName(path + 1);
-        statbuf->st_mode = file.mode;
-        statbuf->st_size = file.size;
-        statbuf->st_uid = file.user_id;
-        statbuf->st_gid = file.group_id;
-        statbuf->st_atime = file.atime;
-        statbuf->st_ctime = file.ctime;
-        statbuf->st_mtime = file.mtime;
+    }else if (contains(path + 1, file)){
+        statbuf->st_mode = file->mode;
+        statbuf->st_size = file->size;
+        statbuf->st_uid = file->user_id;
+        statbuf->st_gid = file->group_id;
+        statbuf->st_atime = file->atime;
+        statbuf->st_ctime = file->ctime;
+        statbuf->st_mtime = file->mtime;
         statbuf->st_nlink = 1;
     }else
         ret = -ENOENT;
@@ -385,7 +380,7 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
     if (strcmp(path, "/") ==
         0) // If the user is trying to show the files/directories of the root directory show the following
     {
-        for(auto file: directory) {
+        for(auto file: dir) {
             if(strcmp(file.name, "") != 0) {
 
                 fuseGetattr(path, &stat);
@@ -427,7 +422,7 @@ void *MyInMemoryFS::fuseInit(struct fuse_conn_info *conn) {
 void MyInMemoryFS::fuseDestroy() {
     LOGM();
 
-    for (auto & i : directory) {
+    for (auto & i : dir) {
         free(i.data);
         i.size = 0;
     }
