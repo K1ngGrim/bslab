@@ -30,56 +30,29 @@
 #define DEBUG_RETURN_VALUES
 
 #include <unistd.h>
-#include <string.h>
-#include <errno.h>
+#include <cstring>
+#include <cerrno>
 
 #include "macros.h"
 #include "myfs.h"
 #include "myfs-info.h"
 #include "blockdevice.h"
+#include "myfs-structs.h"
 
-///@brief Array of files in MyInMemoryFS
-MyFsFile directory[NUM_DIR_ENTRIES];
-
-bool containsFile(const char searched[]) {
-    for(auto &file : directory) {
-        if(strcmp(file.name, searched) == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-MyFsFile FileByName(const char name[]) {
-    for(auto file : directory) {
-        if(strcmp(file.name, name) == 0) {
-            return file;
-        }
-    }
-    return {};
-}
+MyFsDirectory directory = MyFsDirectory();
+//MyFsFile *dir = directory.directory;
 
 
 /// @brief Constructor of the in-memory file system class.
 ///
 /// You may add your own constructor code here.
 MyInMemoryFS::MyInMemoryFS() : MyFS() {
-
-    // TODO: [PART 1] Add your constructor code here
-
-    char name[NAME_LENGTH] = "Test";
-    memccpy(directory[0].name, name, 0,sizeof name);
-    directory[0].mode = (S_IFDIR | 0755);
-    directory[0].mtime = (time(NULL));
-    directory[0].size = 1024;
-
 }
 
 /// @brief Destructor of the in-memory file system class.
 ///
 /// You may add your own destructor code here.
 MyInMemoryFS::~MyInMemoryFS() {
-    // TODO: [PART 1] Add your cleanup code here
 }
 
 /// @brief Create a new file.
@@ -95,9 +68,8 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
 
     LOGF("Try to create a File with the name %s!\n", path+1);
     int result = 0;
-    // TODO: [PART 1] Implement this!
 
-    for(auto &file : directory) {
+    for(auto &file : directory.directory) {
         if(strcmp(file.name, path+1) == 0 || strlen(path+1) > NAME_LENGTH) {
             result = -EEXIST;
             break;
@@ -185,8 +157,8 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
     if (strcmp(path, "/") == 0) {
         statbuf->st_mode = S_IFDIR | 0755;
         statbuf->st_nlink = 2; // Why "two" hardlinks instead of "one"? The answer is here: http://unix.stackexchange.com/a/101536
-    }else if (containsFile(path + 1)){
-        MyFsFile file = FileByName(path + 1);
+    }else if (directory.contains(path+1)) {
+        MyFsFile file = directory.getFile(path+1);
         statbuf->st_mode = file.mode;
         statbuf->st_size = file.size;
         statbuf->st_uid = file.user_id;
@@ -385,7 +357,7 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
     if (strcmp(path, "/") ==
         0) // If the user is trying to show the files/directories of the root directory show the following
     {
-        for(auto file: directory) {
+        for(auto file: directory.directory) {
             if(strcmp(file.name, "") != 0) {
 
                 fuseGetattr(path, &stat);
@@ -427,7 +399,7 @@ void *MyInMemoryFS::fuseInit(struct fuse_conn_info *conn) {
 void MyInMemoryFS::fuseDestroy() {
     LOGM();
 
-    for (auto & i : directory) {
+    for (auto & i : directory.directory) {
         free(i.data);
         i.size = 0;
     }
