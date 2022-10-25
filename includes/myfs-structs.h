@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <cstdio>
 #include <ctime>
+#include <libc.h>
 
 #ifndef myfs_structs_h
 #define myfs_structs_h
@@ -36,50 +37,27 @@
 struct MyFsFile {
 public:
     char name[NAME_LENGTH] = "";
-    size_t size;
+    size_t size = 0;
     mode_t mode;
-    uid_t user_id;
-    gid_t group_id;
+    uid_t user_id = getuid();
+    gid_t group_id = getgid();
     nlink_t link = 1;
     time_t atime = time(NULL);
     time_t mtime = time(NULL);
     time_t ctime = time(NULL);
 
-
-//TODO: In Blöcke einteilen Später
     // Achtung: Hat keinen Nullterminator!
     char* data;
-
-    char* getName();
-    void setName(char name[NAME_LENGTH]);
-
-    size_t getSize();
-    void setSize(size_t size);
-
-    mode_t getMode();
-    void setMode(mode_t mode);
-
-    uid_t getUID();
-    void setUID(uid_t uid);
-
-    gid_t getGID();
-    void setGID(gid_t gid);
-
-    time_t getATime();
-    void setATime(time_t aTime);
-
-    time_t getMTime();
-    void setMTime(time_t mTime);
-
-    time_t getCTime();
-    void setCTime(time_t cTime);
 };
 
 class MyFsDirectory {
 public:
     MyFsFile directory[NUM_DIR_ENTRIES] = {};
     int addFile(MyFsFile newFile);
-    bool contains(const char searched[], MyFsFile* result = nullptr);
+    bool contains(const char searched[]);
+    MyFsFile getFile(const char searched[]);
+    int find(const char searched[]);
+    int findFreeSpace();
 };
 
 #endif /* myfs_structs_h */
