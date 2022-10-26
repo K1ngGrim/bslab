@@ -1,4 +1,5 @@
 #include <cstring>
+#include <cerrno>
 #include "myfs-structs.h"
 
 /*!
@@ -81,9 +82,21 @@ int MyFsDirectory::deleteFile(const char *name) {
         strcpy(file->name, "");
         return 0;
     }else {
-        ///File not found
+        return -ENOENT;
     }
 
 
     return 0;
+}
+
+int MyFsDirectory::renameFile(const char *oldName, const char *newName) {
+
+    if(contains(oldName)) {
+        MyFsFile *file = &directory[find(oldName)];
+        if(contains(newName)) if(int del = deleteFile(newName) != 0) return del;
+        strcpy(file->name, newName);
+        return 0;
+    }else {
+        return -ENOENT;
+    }
 }

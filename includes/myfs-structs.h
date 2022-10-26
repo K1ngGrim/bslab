@@ -98,6 +98,15 @@ public:
      * @return Success code as int for Success or Errors
      */
     int deleteFile(const char name[]);
+
+    /*!
+     * @brief Rename a File, Deleting the File named newName if its already exists.
+     * @param oldName current name of the File
+     * @param newName new name of the File
+     * @return Success Code
+     */
+    int renameFile(const char oldName[], const char newName[]);
+
 };
 
 #endif /* myfs_structs_h */

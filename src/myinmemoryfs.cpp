@@ -24,7 +24,6 @@
 
 #undef DEBUG
 
-// TODO: Comment lines to reduce debug messages
 #define DEBUG
 #define DEBUG_METHODS
 #define DEBUG_RETURN_VALUES
@@ -40,7 +39,6 @@
 #include "myfs-structs.h"
 
 MyFsDirectory directory = MyFsDirectory();
-//MyFsFile *dir = directory.directory;
 
 
 /// @brief Constructor of the in-memory file system class.
@@ -71,6 +69,7 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
 
     for(auto &file : directory.directory) {
         if(strcmp(file.name, path+1) == 0 || strlen(path+1) > NAME_LENGTH) {
+            LOGF("Error occurred! File \'%s\' already exists!\n", path+1);
             result = -EEXIST;
             break;
         }
@@ -82,7 +81,7 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
             file.mode = mode; ///Necessary for generating a File
             file.group_id = getgid();
             file.user_id = getuid();
-            LOGF("File name: %s\n", file.name);
+            LOGF("Generated File with name: %s\n", file.name);
             break;
         }
     }
@@ -112,10 +111,7 @@ int MyInMemoryFS::fuseUnlink(const char *path) {
 /// \return 0 on success, -ERRNO on failure.
 int MyInMemoryFS::fuseRename(const char *path, const char *newpath) {
     LOGM();
-
-    // TODO: [PART 1] Implement this!
-
-    return 0;
+    RETURN(directory.renameFile(path+1, newpath+1));
 }
 
 /// @brief Get file meta data.
