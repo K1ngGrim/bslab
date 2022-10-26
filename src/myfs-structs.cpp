@@ -72,3 +72,18 @@ int MyFsDirectory::findFreeSpace() {
     }
     return -1;
 }
+
+int MyFsDirectory::deleteFile(const char *name) {
+
+    if(contains(name)) {
+        MyFsFile *file = &directory[find(name)];
+        file->size = -1;
+        strcpy(file->name, "");
+        return 0;
+    }else {
+        ///File not found
+    }
+
+
+    return 0;
+}

@@ -37,7 +37,7 @@
 struct MyFsFile {
 public:
     char name[NAME_LENGTH] = "";
-    size_t size = 0;
+    size_t size = -1;
     mode_t mode;
     uid_t user_id = getuid();
     gid_t group_id = getgid();
@@ -52,12 +52,52 @@ public:
 
 class MyFsDirectory {
 public:
+
+    /*!
+     * @brief Main directory with space of NUM_DIR_ENTRIES
+     */
     MyFsFile directory[NUM_DIR_ENTRIES] = {};
+
+    /*!
+     * @brief Add a file to current directory
+     * @param newFile File Object with data
+     * @return Success Code
+     */
     int addFile(MyFsFile newFile);
+
+    /*!
+     * @brief Check if the directory contains a File by name
+     * @param searched Name of the File
+     * @return true if found, false else
+     */
     bool contains(const char searched[]);
+
+    /*!
+     * @brief Get a File with a certain name
+     * @param searched
+     * @return the File if it exists, empty File else
+     */
     MyFsFile getFile(const char searched[]);
+
+    /*!
+     * @brief Find a File by name
+     * @param searched: name of the File
+     * @return index of File in array
+     */
     int find(const char searched[]);
+
+    /*!
+     * @brief Find first free Space to write a new File in it.
+     * @return index in Array
+     */
     int findFreeSpace();
+
+    /*!
+     * @brief Soft-deleting File. Setting size to -1 and name to "" for overwriting
+     * @param name: Name of the File without starting /
+     * @return Success code as int for Success or Errors
+     */
+    int deleteFile(const char name[]);
 };
 
 #endif /* myfs_structs_h */

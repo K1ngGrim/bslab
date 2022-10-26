@@ -74,7 +74,7 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
             result = -EEXIST;
             break;
         }
-        if(file.size == 0) {
+        if(file.size == -1) {
             ///Generate a new File on first Empty place
             strcpy(file.name, path+1);
             file.size = 1024;
@@ -98,15 +98,12 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
 /// \return 0 on success, -ERRNO on failure.
 int MyInMemoryFS::fuseUnlink(const char *path) {
     LOGM();
-
-    // TODO: [PART 1] Implement this!
-
-    RETURN(0);
+    RETURN(directory.deleteFile(path+1));
 }
 
 /// @brief Rename a file.
 ///
-/// Rename the file with with a given name to a new name.
+/// Rename the file with a given name to a new name.
 /// Note that if a file with the new name already exists it is replaced (i.e., removed
 /// before renaming the file.
 /// You do not have to check file permissions, but can assume that it is always ok to access the file.
@@ -358,8 +355,7 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
         0) // If the user is trying to show the files/directories of the root directory show the following
     {
         for(auto file: directory.directory) {
-            if(strcmp(file.name, "") != 0) {
-
+            if(file.size != -1) {
                 fuseGetattr(path, &stat);
                 filler(buf, file.name, &stat, 0);
             }
