@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 #include <cstdio>
 #include <ctime>
-#include <libc.h>
+#include <unistd.h>
 
 #ifndef myfs_structs_h
 #define myfs_structs_h

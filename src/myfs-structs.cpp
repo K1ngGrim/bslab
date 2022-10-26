@@ -66,7 +66,7 @@ int MyFsDirectory::findFreeSpace() {
 
     int index = 0;
     for(auto &file : directory) {
-        if(file.size == 0) {
+        if(file.size == -1) {
             return index;
         }
         index++;
@@ -84,9 +84,6 @@ int MyFsDirectory::deleteFile(const char *name) {
     }else {
         return -ENOENT;
     }
-
-
-    return 0;
 }
 
 int MyFsDirectory::renameFile(const char *oldName, const char *newName) {

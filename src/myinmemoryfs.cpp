@@ -175,10 +175,15 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
 /// \return 0 on success, -ERRNO on failure.
 int MyInMemoryFS::fuseChmod(const char *path, mode_t mode) {
     LOGM();
+    int result = 0;
+    if(int index = directory.find(path+1) >= 0) {
+        MyFsFile *file = &directory.directory[index];
+        file->mode = mode;
+    }else {
+        result = -ENOENT;
+    }
 
-    // TODO: [PART 1] Implement this!
-
-    RETURN(0);
+    RETURN(result);
 }
 
 /// @brief Change the owner of a file.
@@ -191,10 +196,18 @@ int MyInMemoryFS::fuseChmod(const char *path, mode_t mode) {
 /// \return 0 on success, -ERRNO on failure.
 int MyInMemoryFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
     LOGM();
+    int result = 0;
+    LOGF("Trying to find file %s in index %d", path+1, directory.find(path+1));
+    if(int index = directory.find(path+1) >= 0) {
+        MyFsFile *file = &directory.directory[index];
+        LOGF("Trying to change guid to %s and uid to %s", uid, gid);
+        file->user_id = uid;
+        file->group_id = gid;
+    }else {
+        result = -ENOENT;
+    }
 
-    // TODO: [PART 1] Implement this!
-
-    RETURN(0);
+    RETURN(result);
 }
 
 /// @brief Open a file.
@@ -356,9 +369,10 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
                 filler(buf, file.name, &stat, 0);
             }
         }
+        RETURN(0);
     }
 
-    RETURN(0);
+    RETURN(-ENOENT);
 }
 
 /// Initialize a file system.
