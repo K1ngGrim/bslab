@@ -52,7 +52,6 @@ MyInMemoryFS::MyInMemoryFS() : MyFS() {
 /// You may add your own destructor code here.
 MyInMemoryFS::~MyInMemoryFS() {
 }
-
 /// @brief Create a new file.
 ///
 /// Create a new file with given name and permissions.
