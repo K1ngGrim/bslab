@@ -58,8 +58,6 @@ MyFsFile FileByName(const char name[]) {
     }
     return {};
 }
-
-
 /// @brief Constructor of the in-memory file system class.
 ///
 /// You may add your own constructor code here.
