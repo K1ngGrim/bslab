@@ -151,10 +151,15 @@ int MyInMemoryFS::fuseUnlink(const char *path) {
 /// \return 0 on success, -ERRNO on failure.
 int MyInMemoryFS::fuseRename(const char *path, const char *newpath) {
     LOGM();
+    int result = 0;
+    if(int index = findFile(path+1) >= 0) {
+        strcpy(directory[index].name, newpath+1);
+    }else {
+        result = -ENOENT;
+    }
 
-    // TODO: [PART 1] Implement this!
 
-    return 0;
+    return result;
 }
 
 /// @brief Get file meta data.
