@@ -338,7 +338,10 @@ MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_t of
         if(offset + size > directory[index].size){  // erweiterung der größe nötig
             fuseTruncate(path, size + offset);
         }
-        memcpy(directory[index].data + offset, buf, size);
+        memcpy(directory[index].data + offset, buf, size);  // schreibe size viele char an die stelle offset in data
+        result = size;
+        time_t time = time(NULL);
+
     }else{
         result = ENOENT;
     }
