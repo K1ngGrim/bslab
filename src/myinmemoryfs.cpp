@@ -42,8 +42,8 @@ MyFsFile directory[NUM_DIR_ENTRIES];
 int openFileCount = 0;
 
 bool containsFile(const char searched[]) {
-    for(auto &file : directory) {
-        if(strcmp(file.name, searched) == 0) {
+    for (auto &file: directory) {
+        if (strcmp(file.name, searched) == 0) {
             return true;
         }
     }
@@ -52,8 +52,8 @@ bool containsFile(const char searched[]) {
 
 int findFile(const char *searched) {
     int index = 0;
-    for(auto &file : directory) {
-        if(strcmp(file.name, searched) == 0) {
+    for (auto &file: directory) {
+        if (strcmp(file.name, searched) == 0) {
             return index;
         }
         index++;
@@ -62,13 +62,14 @@ int findFile(const char *searched) {
 }
 
 MyFsFile FileByName(const char name[]) {
-    for(auto file : directory) {
-        if(strcmp(file.name, name) == 0) {
+    for (auto file: directory) {
+        if (strcmp(file.name, name) == 0) {
             return file;
         }
     }
     return {};
 }
+
 /// @brief Constructor of the in-memory file system class.
 ///
 /// You may add your own constructor code here.
@@ -81,6 +82,7 @@ MyInMemoryFS::MyInMemoryFS() : MyFS() {
 MyInMemoryFS::~MyInMemoryFS() {
     // TODO: [PART 1] Add your cleanup code here
 }
+
 /// @brief Create a new file.
 ///
 /// Create a new file with given name and permissions.
@@ -92,21 +94,20 @@ MyInMemoryFS::~MyInMemoryFS() {
 int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     LOGM();
 
-    LOGF("Try to create a File with the name %s!\n", path+1);
+    LOGF("Try to create a File with the name %s!\n", path + 1);
     int result = 0;
     // TODO: [PART 1] Implement this!
 
-    for(auto &file : directory) {
-        if(strcmp(file.name, path+1) == 0 || strlen(path+1) > NAME_LENGTH) {
+    for (auto &file: directory) {
+        if (strcmp(file.name, path + 1) == 0 || strlen(path + 1) > NAME_LENGTH) {
             result = -EEXIST;
             break;
         }
-        if(file.size == -1) {
+        if (file.size == -1) {
             ///Generate a new File on first Empty place
             strcpy(file.name, path + 1);
-            file.size = 5;
+            file.size = 0;
             file.data = static_cast<char *>(malloc(file.size));
-            memcpy(file.data, "Hallo", 5);
             file.mode = mode; ///Necessary for generating a File
             file.group_id = getgid();
             file.user_id = getuid();
@@ -127,10 +128,10 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
 int MyInMemoryFS::fuseUnlink(const char *path) {
     LOGM();
     int result = 0;
-    if(int index = findFile(path+1) >= 0) {
+    if (int index = findFile(path + 1) >= 0) {
         directory[index].size = -1;
         strcpy(directory[index].name, "");
-    }else {
+    } else {
         result = -ENOENT;
     }
     RETURN(result);
@@ -148,9 +149,9 @@ int MyInMemoryFS::fuseUnlink(const char *path) {
 int MyInMemoryFS::fuseRename(const char *path, const char *newpath) {
     LOGM();
     int result = 0;
-    if(int index = findFile(path+1) >= 0) {
-        strcpy(directory[index].name, newpath+1);
-    }else {
+    if (int index = findFile(path + 1) >= 0) {
+        strcpy(directory[index].name, newpath + 1);
+    } else {
         result = -ENOENT;
     }
 
@@ -194,7 +195,7 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
     if (strcmp(path, "/") == 0) {
         statbuf->st_mode = S_IFDIR | 0755;
         statbuf->st_nlink = 2; // Why "two" hardlinks instead of "one"? The answer is here: http://unix.stackexchange.com/a/101536
-    }else if (containsFile(path + 1)){
+    } else if (containsFile(path + 1)) {
         MyFsFile file = FileByName(path + 1);
         statbuf->st_mode = file.mode;
         statbuf->st_size = file.size;
@@ -220,9 +221,9 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
 int MyInMemoryFS::fuseChmod(const char *path, mode_t mode) {
     LOGM();
     int result = 0;
-    if(int index = findFile(path+1) >= 0) {
+    if (int index = findFile(path + 1) >= 0) {
         directory[index].mode = mode;
-    }else {
+    } else {
         result = -ENOENT;
     }
 
@@ -240,10 +241,10 @@ int MyInMemoryFS::fuseChmod(const char *path, mode_t mode) {
 int MyInMemoryFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
     LOGM();
     int result = 0;
-    if(int index = findFile(path+1) >= 0) {
+    if (int index = findFile(path + 1) >= 0) {
         directory[index].user_id = uid;
         directory[index].group_id = gid;
-    }else {
+    } else {
         result = -ENOENT;
     }
 
@@ -268,7 +269,7 @@ int MyInMemoryFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
         result = -ENOENT;
     }
 
-        RETURN(0);
+    RETURN(0);
 }
 
 /// @brief Read from a file.
@@ -298,38 +299,38 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
 
     if (offset < 0 || strcmp(path, "/") == 0) {
         result = -ENOENT;
-    }else {
-        for(auto &file :directory) {
-            if(strcmp(file.name, path+1) == 0) {
+    } else {
+        for (auto &file: directory) {
+            if (strcmp(file.name, path + 1) == 0) {
                 char *text = file.data;
-                memcpy(buf, text + offset, size-offset);
+                memcpy(buf, text + offset, size - offset);
                 break;
             }
         }
     }
-        /*!if (int index = findFile(path + 1) >= 0) {
+    /*!if (int index = findFile(path + 1) >= 0) {
 
-            MyFsFile *file = &directory[index];
+        MyFsFile *file = &directory[index];
 
-            int actual_size = file->size - offset;
-            if (actual_size > size) actual_size = size;
-            if (offset >= file->size) {
-                result = -ENOENT;
-            }else if(file->data != nullptr){   //offset value valid
-                result = actual_size;
-                char *text = file->data;
-                LOGF("Want to print %s", text);
-                memcpy(buf, text + offset, size);
-            }else {
-                result = -ESRCH;
-            }
-    } else {
-            result = -EINTR;
-    }*/
+        int actual_size = file->size - offset;
+        if (actual_size > size) actual_size = size;
+        if (offset >= file->size) {
+            result = -ENOENT;
+        }else if(file->data != nullptr){   //offset value valid
+            result = actual_size;
+            char *text = file->data;
+            LOGF("Want to print %s", text);
+            memcpy(buf, text + offset, size);
+        }else {
+            result = -ESRCH;
+        }
+} else {
+        result = -EINTR;
+}*/
 
 
 
-    RETURN(size-offset);
+    RETURN(size - offset);
 }
 
 /// @brief Write to a file.
@@ -352,15 +353,15 @@ MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_t of
     LOGM();
     int result = 0;
 
-    for(auto &file: directory) {
-        if(strcmp(file.name, path+1) == 0) {
-            if(offset + size > file.size) {
-                fuseTruncate(path, size+offset);
+    for (auto &file: directory) {
+        if (strcmp(file.name, path + 1) == 0) {
+            if (offset + size > file.size) {
+                fuseTruncate(path, size + offset);
             }
-            memcpy(file.data+ offset, buf, size);
+            memcpy(file.data + offset, buf, size);
             result = size;
             break;
-        }else {
+        } else {
             result = -ENOENT;
             break;
         }
@@ -401,16 +402,16 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize) {
     LOGM();
     int result = 0;
 
-    for(auto &file: directory) {
-        if(strcmp(file.name, path+1) == 0) {
-            if(file.size > newSize) {
+    for (auto &file: directory) {
+        if (strcmp(file.name, path + 1) == 0) {
+            if (file.size > newSize) {
                 memcpy(file.data, file.data, newSize);
-            }else {
-                file.data = (char*)malloc(newSize*sizeof (char));
+            } else {
+                file.data = (char *) malloc(newSize * sizeof(char));
             }
             file.size = newSize;
             break;
-        }else {
+        } else {
             result = -ENOENT;
             break;
         }
@@ -459,8 +460,8 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
     if (strcmp(path, "/") ==
         0) // If the user is trying to show the files/directories of the root directory show the following
     {
-        for(auto file: directory) {
-            if(strcmp(file.name, "") != 0 && file.size != -1) {
+        for (auto file: directory) {
+            if (strcmp(file.name, "") != 0 && file.size != -1) {
 
                 fuseGetattr(path, &stat);
                 filler(buf, file.name, &stat, 0);
@@ -501,7 +502,7 @@ void *MyInMemoryFS::fuseInit(struct fuse_conn_info *conn) {
 void MyInMemoryFS::fuseDestroy() {
     LOGM();
 
-    for (auto & i : directory) {
+    for (auto &i: directory) {
         free(i.data);
         i.size = 0;
     }
