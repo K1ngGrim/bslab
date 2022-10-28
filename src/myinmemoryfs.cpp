@@ -64,18 +64,18 @@ MyInMemoryFS::~MyInMemoryFS() {
 int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     LOGM();
 
-    LOGF("Try to create a File with the name %s!\n", path+1);
+    LOGF("Try to create a File with the name %s!\n", path + 1);
     int result = 0;
 
-    for(auto &file : directory.directory) {
-        if(strcmp(file.name, path+1) == 0 || strlen(path+1) > NAME_LENGTH) {
-            LOGF("Error occurred! File \'%s\' already exists!\n", path+1);
+    for (auto &file: directory.directory) {
+        if (strcmp(file.name, path + 1) == 0 || strlen(path + 1) > NAME_LENGTH) {
+            LOGF("Error occurred! File \'%s\' already exists!\n", path + 1);
             result = -EEXIST;
             break;
         }
-        if(file.size == -1) {
+        if (file.size == -1) {
             ///Generate a new File on first Empty place
-            strcpy(file.name, path+1);
+            strcpy(file.name, path + 1);
             file.size = 1024;
             file.data = static_cast<char *>(malloc(file.size));
             file.mode = mode; ///Necessary for generating a File
@@ -97,7 +97,7 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
 /// \return 0 on success, -ERRNO on failure.
 int MyInMemoryFS::fuseUnlink(const char *path) {
     LOGM();
-    RETURN(directory.deleteFile(path+1));
+    RETURN(directory.deleteFile(path + 1));
 }
 
 /// @brief Rename a file.
@@ -111,7 +111,7 @@ int MyInMemoryFS::fuseUnlink(const char *path) {
 /// \return 0 on success, -ERRNO on failure.
 int MyInMemoryFS::fuseRename(const char *path, const char *newpath) {
     LOGM();
-    RETURN(directory.renameFile(path+1, newpath+1));
+    RETURN(directory.renameFile(path + 1, newpath + 1));
 }
 
 /// @brief Get file meta data.
@@ -150,8 +150,8 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
     if (strcmp(path, "/") == 0) {
         statbuf->st_mode = S_IFDIR | 0755;
         statbuf->st_nlink = 2; // Why "two" hardlinks instead of "one"? The answer is here: http://unix.stackexchange.com/a/101536
-    }else if (directory.contains(path+1)) {
-        MyFsFile file = directory.getFile(path+1);
+    } else if (directory.contains(path + 1)) {
+        MyFsFile file = directory.getFile(path + 1);
         statbuf->st_mode = file.mode;
         statbuf->st_size = file.size;
         statbuf->st_uid = file.user_id;
@@ -160,7 +160,7 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
         statbuf->st_ctime = file.ctime;
         statbuf->st_mtime = file.mtime;
         statbuf->st_nlink = 1;
-    }else
+    } else
         ret = -ENOENT;
 
     RETURN(ret);
@@ -176,10 +176,10 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
 int MyInMemoryFS::fuseChmod(const char *path, mode_t mode) {
     LOGM();
     int result = 0;
-    if(int index = directory.find(path+1) >= 0) {
+    if (int index = directory.find(path + 1) >= 0) {
         MyFsFile *file = &directory.directory[index];
         file->mode = mode;
-    }else {
+    } else {
         result = -ENOENT;
     }
 
@@ -197,13 +197,13 @@ int MyInMemoryFS::fuseChmod(const char *path, mode_t mode) {
 int MyInMemoryFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
     LOGM();
     int result = 0;
-    LOGF("Trying to find file %s in index %d", path+1, directory.find(path+1));
-    if(int index = directory.find(path+1) >= 0) {
+    LOGF("Trying to find file %s in index %d", path + 1, directory.find(path + 1));
+    if (int index = directory.find(path + 1) >= 0) {
         MyFsFile *file = &directory.directory[index];
         LOGF("Trying to change guid to %s and uid to %s", uid, gid);
         file->user_id = uid;
         file->group_id = gid;
-    }else {
+    } else {
         result = -ENOENT;
     }
 
@@ -220,10 +220,16 @@ int MyInMemoryFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
 /// \return 0 on success, -ERRNO on failure.
 int MyInMemoryFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
     LOGM();
+    int result = 0;
+    if (int index = directory.find(path + 1) >= 0) {
+        MyFsFile *file = &directory.directory[index];
+        LOGF("FileCounter: %d", directory.openFileCount);
+        directory.openFileCount++;
+    } else {
+        result = -ENOENT;
+    }
 
-    // TODO: [PART 1] Implement this!
-
-    RETURN(0);
+    RETURN(result);
 }
 
 /// @brief Read from a file.
@@ -245,28 +251,32 @@ int MyInMemoryFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
 /// -ERRNO on failure.
 int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
     LOGM();
-    // TODO: [PART 1] Implement this!
-
     LOGF("--> Trying to read %s, %lu, %lu\n", path, (unsigned long) offset, size);
 
-    char file54Text[] = "Hello World From File54!\n";
-    char file349Text[] = "Hello World From File349!\n";
+    //TODO: initial file size from 1024 to 0
+
+    int returnValue = 0;
     char *selectedText = NULL;
 
-    // ... //
-
-    if (strcmp(path, "/file54") == 0)
-        selectedText = file54Text;
-    else if (strcmp(path, "/file349") == 0)
-        selectedText = file349Text;
-    else
-        return -ENOENT;
-
-    // ... //
-
-    memcpy(buf, selectedText + offset, size);
-
-    RETURN((int) (strlen(selectedText) - offset));
+    if (offset < 0)
+        returnValue = -ENOENT;
+    if (strcmp(path, "/") == 0)
+        returnValue = -ENOENT;
+    if (int index = directory.find(path + 1) >= 0) {
+        MyFsFile *file = &directory.directory[index];
+        int actual_size = file->size - offset;
+        if (actual_size > size)
+            actual_size = size;
+        if (offset >= file->size)
+            returnValue = -ENOENT;
+        else {   //offset value valid
+            returnValue = actual_size;
+            memcpy(buf, file->data + offset, actual_size);
+        }
+    } else {
+        returnValue - ENOENT;
+    }
+    RETURN((int) (returnValue));
 }
 
 /// @brief Write to a file.
@@ -363,8 +373,8 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
     if (strcmp(path, "/") ==
         0) // If the user is trying to show the files/directories of the root directory show the following
     {
-        for(auto file: directory.directory) {
-            if(file.size != -1) {
+        for (auto file: directory.directory) {
+            if (file.size != -1) {
                 fuseGetattr(path, &stat);
                 filler(buf, file.name, &stat, 0);
             }
@@ -405,7 +415,7 @@ void *MyInMemoryFS::fuseInit(struct fuse_conn_info *conn) {
 void MyInMemoryFS::fuseDestroy() {
     LOGM();
 
-    for (auto & i : directory.directory) {
+    for (auto &i: directory.directory) {
         free(i.data);
         i.size = 0;
     }

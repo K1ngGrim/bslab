@@ -8,7 +8,7 @@
  * @param result Optional Pointer of Searched File
  * @return bool found = true, not found = false
  */
-bool MyFsDirectory::contains(const char *searched) {
+bool MyFsDirectory::contains(const char searched[]) {
     for(auto &file : directory) {
         if(strcmp(file.name, searched) == 0) {
             return true;
@@ -22,7 +22,7 @@ bool MyFsDirectory::contains(const char *searched) {
  * @param searched
  * @return index of found file, -1 if file does not exists
  */
-int MyFsDirectory::find(const char *searched) {
+int MyFsDirectory::find(const char searched[]) {
     int index = 0;
     for(auto &file : directory) {
         if(strcmp(file.name, searched) == 0) {

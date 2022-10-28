@@ -53,12 +53,18 @@ public:
 class MyFsDirectory {
 public:
 
-    /*!
-     * @brief Main directory with space of NUM_DIR_ENTRIES
-     */
-    MyFsFile directory[NUM_DIR_ENTRIES] = {};
 
     /*!
+     * @brief Main directory with space of NUM_DIR_ENTRIES
+     * @brief openFileCount with current open files
+     *
+     */
+    MyFsFile directory[NUM_DIR_ENTRIES] = {};
+    int openFileCount = 0;
+
+
+
+/*!
      * @brief Add a file to current directory
      * @param newFile File Object with data
      * @return Success Code
@@ -106,6 +112,7 @@ public:
      * @return Success Code
      */
     int renameFile(const char oldName[], const char newName[]);
+
 
 };
 
