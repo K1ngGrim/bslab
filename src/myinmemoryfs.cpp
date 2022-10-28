@@ -268,7 +268,7 @@ int MyInMemoryFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
         result = -ENOENT;
     }
 
-    RETURN(result);
+        RETURN(0);
 }
 
 /// @brief Read from a file.
@@ -351,15 +351,19 @@ int
 MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
     LOGM();
     int result = 0;
-    if(int index = findFile(path + 1) >= 0){
-        if(offset + size > directory[index].size){  // erweiterung der größe nötig
-            fuseTruncate(path, size + offset);
-        }
-        memcpy(directory[index].data + offset, buf, size);  // schreibe size viele char an die stelle offset in data
-        result = size;
 
-    }else{
-        result = ENOENT;
+    for(auto &file: directory) {
+        if(strcmp(file.name, path+1) == 0) {
+            if(offset + size > file.size) {
+                fuseTruncate(path, size+offset);
+            }
+            memcpy(file.data+ offset, buf, size);
+            result = size;
+            break;
+        }else {
+            result = -ENOENT;
+            break;
+        }
     }
 
     return result;
@@ -397,17 +401,19 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize) {
     LOGM();
     int result = 0;
 
-    if(int index = findFile(path+1) >= 0) {
-        MyFsFile* file = &directory[index];
-
-        if(file->size > newSize) {
-            memcpy(file->data, file->data, newSize);
+    for(auto &file: directory) {
+        if(strcmp(file.name, path+1) == 0) {
+            if(file.size > newSize) {
+                memcpy(file.data, file.data, newSize);
+            }else {
+                file.data = (char*)malloc(newSize*sizeof (char));
+            }
+            file.size = newSize;
+            break;
         }else {
-            file->data = (char*)malloc(newSize*sizeof (char));
+            result = -ENOENT;
+            break;
         }
-        file->size = newSize;
-    }else {
-        result = -ENOENT;
     }
 
     RETURN(result);
