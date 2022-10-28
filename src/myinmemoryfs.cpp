@@ -292,8 +292,6 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
     LOGM();
     LOGF("--> Trying to read %s, %lu, %lu\n", path, (unsigned long) offset, size);
 
-    //TODO: initial file size from 1024 to 0
-
     int returnValue = 0;
     char *selectedText = NULL;
 
@@ -336,11 +334,16 @@ int
 MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
     LOGM();
     int result = 0;
+    if(int index = findFile(path + 1) >= 0){
+        if(offset + size > directory[index].size){  // erweiterung der größe nötig
+            fuseTruncate(path, size + offset);
+        }
+        memcpy(directory[index].data + offset, buf, size);
+    }else{
+        result = ENOENT;
+    }
 
-
-    // TODO: [PART 1] Implement this!
-
-    RETURN(0);
+    return result;
 }
 
 /// @brief Close a file.
