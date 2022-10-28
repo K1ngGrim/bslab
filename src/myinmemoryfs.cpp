@@ -39,6 +39,7 @@
 
 ///@brief Array of files in MyInMemoryFS
 MyFsFile directory[NUM_DIR_ENTRIES];
+int openFileCount = 0;
 
 bool containsFile(const char searched[]) {
     for(auto &file : directory) {
@@ -47,6 +48,17 @@ bool containsFile(const char searched[]) {
         }
     }
     return false;
+}
+
+int findFile(const char *searched) {
+    int index = 0;
+    for(auto &file : directory) {
+        if(strcmp(file.name, searched) == 0) {
+            return index;
+        }
+        index++;
+    }
+    return -1;
 }
 
 MyFsFile FileByName(const char name[]) {
@@ -98,10 +110,10 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
             result = -EEXIST;
             break;
         }
-        if(file.size == 0) {
+        if(file.size == -1) {
             ///Generate a new File on first Empty place
             strcpy(file.name, path + 1);
-            file.size = 1024;
+            file.size = 0;
             file.data = static_cast<char *>(malloc(file.size));
             file.mode = mode; ///Necessary for generating a File
             file.group_id = getgid();
@@ -207,14 +219,11 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
 int MyInMemoryFS::fuseChmod(const char *path, mode_t mode) {
     LOGM();
     int result = 0;
-    if(int index = directory.find(path+1) >= 0) {
-        MyFsFile *file = &directory.directory[index];
-        file->mode = mode;
+    if(int index = findFile(path+1) >= 0) {
+        directory[index].mode = mode;
     }else {
         result = -ENOENT;
     }
-
-    // TODO: [PART 1] Implement this!
 
     RETURN(0);
 }
@@ -230,19 +239,14 @@ int MyInMemoryFS::fuseChmod(const char *path, mode_t mode) {
 int MyInMemoryFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
     LOGM();
     int result = 0;
-    LOGF("Trying to find file %s in index %d", path+1, directory.find(path+1));
-    if(int index = directory.find(path+1) >= 0) {
-        MyFsFile *file = &directory.directory[index];
-        LOGF("Trying to change guid to %s and uid to %s", uid, gid);
-        file->user_id = uid;
-        file->group_id = gid;
+    if(int index = findFile(path+1) >= 0) {
+        directory[index].user_id = uid;
+        directory[index].group_id = gid;
     }else {
         result = -ENOENT;
     }
 
-    // TODO: [PART 1] Implement this!
-
-    RETURN(0);
+    RETURN(result);
 }
 
 /// @brief Open a file.
@@ -256,10 +260,10 @@ int MyInMemoryFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
 int MyInMemoryFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
     LOGM();
     int result = 0;
-    if (int index = directory.find(path + 1) >= 0) {
-        MyFsFile *file = &directory.directory[index];
-        LOGF("FileCounter: %d", directory.openFileCount);
-        directory.openFileCount++;
+    if (int index = findFile(path + 1) >= 0) {
+        directory[index];
+        LOGF("FileCounter: %d", openFileCount);
+        openFileCount++;
     } else {
         result = -ENOENT;
     }
@@ -297,16 +301,15 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
         returnValue = -ENOENT;
     if (strcmp(path, "/") == 0)
         returnValue = -ENOENT;
-    if (int index = directory.find(path + 1) >= 0) {
-        MyFsFile *file = &directory.directory[index];
-        int actual_size = file->size - offset;
+    if (int index = findFile(path + 1) >= 0) {
+        int actual_size = directory[index].size - offset;
         if (actual_size > size)
             actual_size = size;
-        if (offset >= file->size)
+        if (offset >= directory[index].size)
             returnValue = -ENOENT;
         else {   //offset value valid
             returnValue = actual_size;
-            memcpy(buf, file->data + offset, actual_size);
+            memcpy(buf, directory[index].data + offset, actual_size);
         }
     } else {
         returnValue - ENOENT;
@@ -332,6 +335,8 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
 int
 MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
     LOGM();
+    int result = 0;
+
 
     // TODO: [PART 1] Implement this!
 
