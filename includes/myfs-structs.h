@@ -36,6 +36,7 @@
  */
 struct MyFsFile {
 public:
+
     char name[NAME_LENGTH] = "";
     size_t size = -1;
     mode_t mode;
