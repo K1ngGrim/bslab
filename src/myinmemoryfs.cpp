@@ -302,8 +302,8 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
         for(auto &file :directory) {
             if(strcmp(file.name, path+1) == 0) {
                 char *text = file.data;
-                LOGF("Try to print %s with Text %s", path+1, text);
                 memcpy(buf, text + offset, size-offset);
+                break;
             }
         }
     }
@@ -329,7 +329,7 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
 
 
 
-    RETURN(result);
+    RETURN(size-offset);
 }
 
 /// @brief Write to a file.
