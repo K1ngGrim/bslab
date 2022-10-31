@@ -297,13 +297,12 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
     LOGM();
     LOGF("--> Trying to read %s, %lu, %lu\n", path, (unsigned long) offset, size);
 
-    //TODO: initial file size from 1024 to 0
-
     int result = 0;
 
     if (offset < 0 || strcmp(path, "/") == 0) {
         result = -ENOENT;
-    } else {
+    } else
+        /*else {
         for (auto &file: directory) {
             if (strcmp(file.name, path + 1) == 0) {
                 char *text = file.data;
@@ -311,18 +310,18 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
                 break;
             }
         }
-    }
-    /*!if (int index = findFile(path + 1) >= 0) {
+    }*/
+    if (int index = findFile(path + 1) >= 0) {
 
-        MyFsFile *file = &directory[index];
+        MyFsFile file = directory[index];
 
-        int actual_size = file->size - offset;
+        int actual_size = file.size - offset;
         if (actual_size > size) actual_size = size;
-        if (offset >= file->size) {
+        if (offset >= file.size) {
             result = -ENOENT;
-        }else if(file->data != nullptr){   //offset value valid
+        }else if(file.data != nullptr){   //offset value valid
             result = actual_size;
-            char *text = file->data;
+            char *text = file.data;
             LOGF("Want to print %s", text);
             memcpy(buf, text + offset, size);
         }else {
@@ -330,7 +329,7 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
         }
 } else {
         result = -EINTR;
-}*/
+}
 
 
 
@@ -411,7 +410,7 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize) {
             if (file.size > newSize) {
                 memcpy(file.data, file.data, newSize);
             } else {
-                file.data = (char *) malloc(newSize * sizeof(char));
+                file.data = static_cast<char *>(realloc(file.data, newSize));
             }
             file.size = newSize;
             break;
