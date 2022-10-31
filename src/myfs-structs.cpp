@@ -49,11 +49,10 @@ int MyFsDirectory::addFile(MyFsFile newFile) {
  * @param searched Name of searched File
  * @return File if found, emtpy found if not
  */
-MyFsFile MyFsDirectory::getFile(const char *searched) {
-
-    MyFsFile fs = MyFsFile();
+MyFsFile * MyFsDirectory::getFile(const char *searched) {
+    MyFsFile* fs;
     if(int i = find(searched)> 0) {
-        fs = directory[i];
+        fs = &directory[i];
     }
     return fs;
 }

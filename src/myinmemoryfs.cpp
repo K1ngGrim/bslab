@@ -74,6 +74,7 @@ MyFsFile FileByName(const char name[]) {
 ///
 /// You may add your own constructor code here.
 MyInMemoryFS::MyInMemoryFS() : MyFS() {
+    this->dir = new MyFsDirectory();
 }
 
 /// @brief Destructor of the in-memory file system class.
@@ -111,6 +112,9 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
             file.mode = mode; ///Necessary for generating a File
             file.group_id = getgid();
             file.user_id = getuid();
+            file.mtime = time(NULL);
+            file.atime = time(NULL);
+            file.ctime = time(NULL);
             LOGF("File name: %s\n", file.name);
             break;
         }
@@ -150,7 +154,8 @@ int MyInMemoryFS::fuseRename(const char *path, const char *newpath) {
     LOGM();
     int result = 0;
     if (int index = findFile(path + 1) >= 0) {
-        strcpy(directory[index].name, newpath + 1);
+        auto file = &directory[index];
+        strcpy((*file).name, newpath + 1);
     } else {
         result = -ENOENT;
     }
@@ -432,10 +437,7 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize) {
 /// \return 0 on success, -ERRNO on failure.
 int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize, struct fuse_file_info *fileInfo) {
     LOGM();
-
-    // TODO: [PART 1] Implement this!
-
-    RETURN(0);
+    RETURN(fuseTruncate(path, newSize));
 }
 
 /// @brief Read a directory.
@@ -468,7 +470,6 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
             }
         }
     }
-
     RETURN(0);
 }
 

@@ -84,7 +84,7 @@ public:
      * @param searched
      * @return the File if it exists, empty File else
      */
-    MyFsFile getFile(const char searched[]);
+    MyFsFile * getFile(const char searched[]);
 
     /*!
      * @brief Find a File by name

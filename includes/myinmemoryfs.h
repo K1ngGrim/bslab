@@ -21,6 +21,7 @@ protected:
 public:
     static MyInMemoryFS *Instance();
 
+
     // TODO: [PART 1] Add attributes of your file system here
 
     MyInMemoryFS();
@@ -47,6 +48,7 @@ public:
     virtual void fuseDestroy();
 
     // TODO: Add methods of your file system here
+
 
 };
 

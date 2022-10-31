@@ -19,6 +19,7 @@ class MyFS {
 protected:
     static MyFS *_instance;
     FILE *logFile;
+    MyFsDirectory *dir;
 
     BlockDevice *blockDevice;
     
