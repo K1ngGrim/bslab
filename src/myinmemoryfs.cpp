@@ -74,7 +74,6 @@ MyFsFile FileByName(const char name[]) {
 ///
 /// You may add your own constructor code here.
 MyInMemoryFS::MyInMemoryFS() : MyFS() {
-    this->dir = new MyFsDirectory();
 }
 
 /// @brief Destructor of the in-memory file system class.
