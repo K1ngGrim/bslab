@@ -53,7 +53,7 @@ MyInMemoryFS::MyInMemoryFS() : MyFS() {
 ///
 /// You may add your own destructor code here.
 MyInMemoryFS::~MyInMemoryFS() {
-    // TODO: [PART 1] Add your cleanup code here
+    free(directory);
 }
 
 /// @brief Create a new file.
@@ -84,14 +84,14 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
             directory[i].mode = mode; ///Necessary for generating a File
             directory[i].group_id = getgid();
             directory[i].user_id = getuid();
-            directory[i].mtime = time(NULL);
-            directory[i].atime = time(NULL);
-            directory[i].ctime = time(NULL);
+            directory[i].mtime = time(nullptr);
+            directory[i].atime = time(nullptr);
+            directory[i].ctime = time(nullptr);
             LOGF("File name: %s\n", directory[i].name);
             break;
         }
     }
-    RETURN(result);
+    RETURN(result)
 }
 
 /// @brief Delete a file.
@@ -110,7 +110,7 @@ int MyInMemoryFS::fuseUnlink(const char *path) {
     } else {
         result = -ENOENT;
     }
-    RETURN(result);
+    RETURN(result)
 }
 
 /// @brief Rename a file.
@@ -133,7 +133,7 @@ int MyInMemoryFS::fuseRename(const char *path, const char *newpath) {
     }
 
 
-    RETURN(result);
+    RETURN(result)
 }
 
 /// @brief Get file meta data.
@@ -164,8 +164,8 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
 
     statbuf->st_uid = getuid(); // The owner of the file/directory is the user who mounted the filesystem
     statbuf->st_gid = getgid(); // The group of the file/directory is the same as the group of the user who mounted the filesystem
-    statbuf->st_atime = time(NULL); // The last "a"ccess of the file/directory is right now
-    statbuf->st_mtime = time(NULL); // The last "m"odification of the file/directory is right now
+    statbuf->st_atime = time(nullptr); // The last "a"ccess of the file/directory is right now
+    statbuf->st_mtime = time(nullptr); // The last "m"odification of the file/directory is right now
 
     int ret = 0;
 
@@ -175,21 +175,20 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
     } else {
         auto index = findFile(path+1);
         if(index >= 0) {
-            MyFsFile file = directory[index];
-            statbuf->st_mode = file.mode;
-            statbuf->st_size = file.size;
-            statbuf->st_uid = file.user_id;
-            statbuf->st_gid = file.group_id;
-            statbuf->st_atime = file.atime;
-            statbuf->st_ctime = file.ctime;
-            statbuf->st_mtime = file.mtime;
+            statbuf->st_mode = directory[index].mode;
+            statbuf->st_size = (off_t) directory[index].size;
+            statbuf->st_uid = directory[index].user_id;
+            statbuf->st_gid = directory[index].group_id;
+            statbuf->st_atime = directory[index].atime;
+            statbuf->st_ctime = directory[index].ctime;
+            statbuf->st_mtime = directory[index].mtime;
             statbuf->st_nlink = 1;
         }else {
             ret = -ENOENT;
         }
     }
 
-    RETURN(ret);
+    RETURN(ret)
 }
 
 /// @brief Change file permissions.
@@ -209,7 +208,7 @@ int MyInMemoryFS::fuseChmod(const char *path, mode_t mode) {
         result = -ENOENT;
     }
 
-    RETURN(result);
+    RETURN(result)
 }
 
 /// @brief Change the owner of a file.
@@ -231,7 +230,7 @@ int MyInMemoryFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
         result = -ENOENT;
     }
 
-    RETURN(result);
+    RETURN(result)
 }
 
 /// @brief Open a file.
@@ -248,13 +247,12 @@ int MyInMemoryFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
     int index = findFile(path + 1);
     if (index >= 0) {
         openFileCount++;
-        LOGF("Opened File %s at index %d", directory[index].name, index);
         LOGF("OpenFileCounter: %d", openFileCount);
     } else {
         result = -ENOENT;
     }
 
-    RETURN(result);
+    RETURN(result)
 }
 
 /// @brief Read from a file.
@@ -279,14 +277,14 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
     LOGF("--> Trying to read %s, %lu, %lu\n", path, (unsigned long) offset, size);
 
     if (offset < 0 || strcmp(path, "/") == 0) {
-        RETURN(-ENOENT);
+        RETURN(-ENOENT)
     } else {
         int index = findFile(path + 1);
         if(index >= 0) {
             memcpy(buf, directory[index].data + offset, size);
         }
     }
-    RETURN(size);
+    RETURN((int) size)
 }
 
 /// @brief Write to a file.
@@ -311,7 +309,7 @@ MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_t of
 
     for(auto i = 0; i < NUM_DIR_ENTRIES; i++) {
         if (strcmp(directory[i].name, path + 1) == 0) {
-            int newSize = offset + size;
+            int newSize = (int) (offset + size);
             fuseTruncate(path, newSize);
             memcpy(directory[i].data + offset, buf, size);
             result = (int) size;
@@ -322,7 +320,7 @@ MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_t of
         }
     }
 
-    RETURN(result);
+    RETURN(result)
 }
 
 /// @brief Close a file.
@@ -335,7 +333,7 @@ int MyInMemoryFS::fuseRelease(const char *path, struct fuse_file_info *fileInfo)
     LOGM();
     openFileCount--;
     LOGF("OpenFileCounter: %d", openFileCount);
-    RETURN(0);
+    RETURN(0)
 }
 
 /// @brief Truncate a file.
@@ -360,7 +358,7 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize) {
             continue;
         }
     }
-    RETURN(result);
+    RETURN(result)
 }
 
 /// @brief Truncate a file.
@@ -375,7 +373,7 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize) {
 /// \return 0 on success, -ERRNO on failure.
 int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize, struct fuse_file_info *fileInfo) {
     LOGM();
-    RETURN(fuseTruncate(path, newSize));
+    RETURN(fuseTruncate(path, newSize))
 }
 
 /// @brief Read a directory.
@@ -392,8 +390,8 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
                               struct fuse_file_info *fileInfo) {
     LOGM();
 
-    filler(buf, ".", NULL, 0); // Current Directory
-    filler(buf, "..", NULL, 0); // Parent Directory
+    filler(buf, ".", nullptr, 0); // Current Directory
+    filler(buf, "..", nullptr, 0); // Parent Directory
     struct stat stat = {};
 
     if (strcmp(path, "/") ==
@@ -407,7 +405,7 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
             }
         }
     }
-    RETURN(0);
+    RETURN(0)
 }
 
 /// Initialize a file system.
@@ -418,18 +416,18 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
 void *MyInMemoryFS::fuseInit(struct fuse_conn_info *conn) {
     // Open logfile
     this->logFile = fopen(((MyFsInfo *) fuse_get_context()->private_data)->logFile, "w+");
-    if (this->logFile == NULL) {
+    if (this->logFile == nullptr) {
         fprintf(stderr, "ERROR: Cannot open logfile %s\n", ((MyFsInfo *) fuse_get_context()->private_data)->logFile);
     } else {
         // turn of logfile buffering
-        setvbuf(this->logFile, NULL, _IOLBF, 0);
+        setvbuf(this->logFile, nullptr, _IOLBF, 0);
 
         LOG("Starting logging...\n");
 
         LOG("Using in-memory mode");
     }
 
-    RETURN(0);
+    RETURN(0)
 }
 
 /// @brief Clean up a file system.
@@ -437,7 +435,6 @@ void *MyInMemoryFS::fuseInit(struct fuse_conn_info *conn) {
 /// This function is called when the file system is unmounted. You may add some cleanup code here.
 void MyInMemoryFS::fuseDestroy() {
     LOGM();
-
     free(directory);
 }
 
