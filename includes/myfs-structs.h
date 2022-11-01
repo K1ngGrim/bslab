@@ -37,15 +37,15 @@
 struct MyFsFile {
 public:
 
-    char name[NAME_LENGTH] = "";
-    size_t size = -1;
+    char name[NAME_LENGTH];
+    size_t size;
     mode_t mode;
-    uid_t user_id = getuid();
-    gid_t group_id = getgid();
+    uid_t user_id;
+    gid_t group_id;
     nlink_t link = 1;
-    time_t atime = time(NULL);
-    time_t mtime = time(NULL);
-    time_t ctime = time(NULL);
+    time_t atime;
+    time_t mtime;
+    time_t ctime;
 
     // Achtung: Hat keinen Nullterminator!
     char* data;

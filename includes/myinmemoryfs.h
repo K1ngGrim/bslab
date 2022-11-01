@@ -20,7 +20,7 @@ protected:
 
 public:
     static MyInMemoryFS *Instance();
-
+    static int findFile(const char *searched);
 
     // TODO: [PART 1] Add attributes of your file system here
 
