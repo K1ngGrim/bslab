@@ -19,8 +19,6 @@
 #define NUM_DIR_ENTRIES 64
 #define NUM_OPEN_FILES 64
 
-// TODO: Add structures of your file system here
-
 /*!
  * @brief file
  *
@@ -29,11 +27,12 @@
  * @param mode permission level
  * @param user_id user id
  * @param group_id group id
- * @param atime time since last access
- * @param mtime time since last modification
- * @param ctime time since last status change
+ * @param atime time off last access
+ * @param mtime time off last modification
+ * @param ctime time off last status change
  * @param data content of the file
  */
+
 struct MyFsFile {
 public:
 

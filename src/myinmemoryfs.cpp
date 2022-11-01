@@ -41,8 +41,6 @@
 MyFsFile *directory = new MyFsFile[NUM_DIR_ENTRIES];
 int openFileCount = 0;
 
-
-
 /// @brief Constructor of the in-memory file system class.
 ///
 /// You may add your own constructor code here.
@@ -67,9 +65,7 @@ MyInMemoryFS::~MyInMemoryFS() {
 int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     LOGM();
 
-    LOGF("Try to create a File with the name %s!\n", path + 1);
     int result = 0;
-    // TODO: [PART 1] Implement this!
 
     for(auto i = 0; i < NUM_DIR_ENTRIES; i++) {
         if (strcmp(directory[i].name, path + 1) == 0 || strlen(path + 1) > NAME_LENGTH) {
@@ -77,17 +73,15 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
             break;
         }
         if (strcmp(directory[i].name, "") == 0) {
-            ///Generate a new File on first Empty place
             strcpy(directory[i].name, path + 1);
             directory[i].size = 0;
             directory[i].data = static_cast<char *>(malloc(directory[i].size));
-            directory[i].mode = mode; ///Necessary for generating a File
+            directory[i].mode = mode; //Necessary for generating a File
             directory[i].group_id = getgid();
             directory[i].user_id = getuid();
             directory[i].mtime = time(nullptr);
             directory[i].atime = time(nullptr);
             directory[i].ctime = time(nullptr);
-            LOGF("File name: %s\n", directory[i].name);
             break;
         }
     }
@@ -107,6 +101,7 @@ int MyInMemoryFS::fuseUnlink(const char *path) {
     if (index >= 0) {
         directory[index].size = -1;
         strcpy(directory[index].name, "");
+        free(&directory[index]);
     } else {
         result = -ENOENT;
     }
@@ -131,7 +126,6 @@ int MyInMemoryFS::fuseRename(const char *path, const char *newpath) {
     } else {
         result = -ENOENT;
     }
-
 
     RETURN(result)
 }
@@ -179,9 +173,7 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
             statbuf->st_size = (off_t) directory[index].size;
             statbuf->st_uid = directory[index].user_id;
             statbuf->st_gid = directory[index].group_id;
-            statbuf->st_atime = directory[index].atime;
             statbuf->st_ctime = directory[index].ctime;
-            statbuf->st_mtime = directory[index].mtime;
             statbuf->st_nlink = 1;
         }else {
             ret = -ENOENT;
@@ -204,6 +196,7 @@ int MyInMemoryFS::fuseChmod(const char *path, mode_t mode) {
     int index = findFile(path + 1);
     if (index >= 0) {
         directory[index].mode = mode;
+        directory[index].atime = directory[index].mtime = time(nullptr);
     } else {
         result = -ENOENT;
     }
@@ -226,6 +219,7 @@ int MyInMemoryFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
     if (index >= 0) {
         directory[index].user_id = uid;
         directory[index].group_id = gid;
+        directory[index].atime = directory[index].mtime = time(nullptr);
     } else {
         result = -ENOENT;
     }
@@ -247,6 +241,7 @@ int MyInMemoryFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
     int index = findFile(path + 1);
     if (index >= 0) {
         openFileCount++;
+        directory[index].atime = time(nullptr);
         LOGF("OpenFileCounter: %d", openFileCount);
     } else {
         result = -ENOENT;
@@ -282,6 +277,7 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
         int index = findFile(path + 1);
         if(index >= 0) {
             memcpy(buf, directory[index].data + offset, size);
+            directory[index].atime = directory[index].mtime = time(nullptr);
         }
     }
     RETURN((int) size)
@@ -313,6 +309,7 @@ MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_t of
             fuseTruncate(path, newSize);
             memcpy(directory[i].data + offset, buf, size);
             result = (int) size;
+            directory[i].atime = directory[i].mtime = time(nullptr);
             break;
         } else {
             result = -ENOENT;
@@ -352,6 +349,7 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize) {
         if (strcmp(directory[i].name, path + 1) == 0) {
             directory[i].data = static_cast<char *>(realloc(directory[i].data, newSize));
             directory[i].size = newSize;
+            directory[i].atime = directory[i].mtime = time(nullptr);
             break;
         } else {
             result = -ENOENT;
@@ -399,7 +397,6 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
     {
         for(auto i = 0; i < NUM_DIR_ENTRIES; i++) {
             if (strcmp(directory[i].name, "") != 0 && directory[i].size != -1) {
-
                 fuseGetattr(path, &stat);
                 filler(buf, directory[i].name, &stat, 0);
             }
