@@ -101,7 +101,6 @@ int MyInMemoryFS::fuseUnlink(const char *path) {
     if (index >= 0) {
         directory[index].size = -1;
         strcpy(directory[index].name, "");
-        free(&directory[index]);
     } else {
         result = -ENOENT;
     }
