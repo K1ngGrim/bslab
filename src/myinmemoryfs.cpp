@@ -113,7 +113,6 @@ int MyInMemoryFS::fuseUnlink(const char *path) {
 /// Note that if a file with the new name already exists it is replaced (i.e., removed
 /// before renaming the file.
 /// You do not have to check file permissions, but can assume that it is always ok to access the file.
-/// \param [in] path Name of the file, starting with "/".
 /// \param [in] newpath  New name of the file, starting with "/".
 /// \return 0 on success, -ERRNO on failure.
 int MyInMemoryFS::fuseRename(const char *path, const char *newpath) {
@@ -436,10 +435,14 @@ void MyInMemoryFS::fuseDestroy() {
 
 // TODO: [PART 1] You may add your own additional methods here!
 
-int MyInMemoryFS::findFile(const char *searched) {
+/// Search a file in the directory based on the name and return its index.
+///
+/// \param [in] nameToFind name of the file which is searched
+/// \return index of the file in the directory, -1 if the file was not found
+int MyInMemoryFS::findFile(const char *nameToFind) {
     int index = 0;
     for(auto i = 0; i < NUM_DIR_ENTRIES; i++, index++) {
-        if (strcmp(directory[i].name, searched) == 0) {
+        if (strcmp(directory[i].name, nameToFind) == 0) {
             return index;
         }
     }
