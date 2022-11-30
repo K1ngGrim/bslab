@@ -23,9 +23,9 @@
 #include "myfs-info.h"
 #include "blockdevice.h"
 
-int *FAT;
-MyFsFileOnMemory *root;
-MyFsSuperBlock *myFsSuperBlock;
+int FAT[NUM_DATA_BLOCKS] = {};
+MyFsFileOnMemory root[NUM_DIR_ENTRIES] = {};
+MyFsSuperBlock myFsSuperBlock = MyFsSuperBlock();
 
 /// @brief Constructor of the on-disk file system class.
 ///
@@ -33,8 +33,6 @@ MyFsSuperBlock *myFsSuperBlock;
 MyOnDiskFS::MyOnDiskFS() : MyFS() {
     // create a block device object
     this->blockDevice= new BlockDevice(BLOCK_SIZE);
-
-    // TODO: [PART 2] Add your constructor code here
 
 }
 
@@ -105,9 +103,31 @@ int MyOnDiskFS::fuseRename(const char *path, const char *newpath) {
 int MyOnDiskFS::fuseGetattr(const char *path, struct stat *statbuf) {
     LOGM();
 
-    // TODO: [PART 2] Implement this!
+    statbuf->st_uid = getuid(); // The owner of the file/directory is the user who mounted the filesystem
+    statbuf->st_gid = getgid(); // The group of the file/directory is the same as the group of the user who mounted the filesystem
+    statbuf->st_atime = time(nullptr); // The last "a"ccess of the file/directory is right now
+    statbuf->st_mtime = time(nullptr); // The last "m"odification of the file/directory is right now
 
-    RETURN(0);
+    int ret = 0;
+
+    if (strcmp(path, "/") == 0) {
+        statbuf->st_mode = S_IFDIR | 0755;
+        statbuf->st_nlink = 2; // Why "two" hardlinks instead of "one"? The answer is here: http://unix.stackexchange.com/a/101536
+    } else {
+        auto index = findFile(path+1);
+        if(index >= 0) {
+            statbuf->st_mode = root[index].mode;
+            statbuf->st_size = (off_t) root[index].size;
+            statbuf->st_uid = root[index].user_id;
+            statbuf->st_gid = root[index].group_id;
+            statbuf->st_ctime = root[index].ctime;
+            statbuf->st_nlink = 1;
+        }else {
+            ret = -ENOENT;
+        }
+    }
+
+    RETURN(ret);
 }
 
 /// @brief Change file permissions.
@@ -291,9 +311,6 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
 
         LOGF("Container file name: %s", ((MyFsInfo *) fuse_get_context()->private_data)->contFile);
 
-        FAT = new int[NUM_BLOCK_SUM];
-        myFsSuperBlock = new MyFsSuperBlock();
-        root = new MyFsFileOnMemory[NUM_DIR_ENTRIES];
 
 
         int ret= this->blockDevice->open(((MyFsInfo *) fuse_get_context()->private_data)->contFile);
@@ -310,8 +327,7 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
             //Block mit der nummer 0 lesen
             this->blockDevice->read(0, buffer);
             //Block 0 in superblock schreiben
-            memcpy(myFsSuperBlock, buffer, sizeof(MyFsSuperBlock));
-
+            memcpy(&myFsSuperBlock, buffer, sizeof(myFsSuperBlock));
             /* Lesen des FATS
              * Wir lesen von superBlock.Fat aus jeden Block einzeln in Buffer.
              * Von Buffer kopieren wir diesen gelesenen Block in fatBuffer, der so groß ist, wie das Fat int Array
@@ -319,22 +335,16 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
              */
 
             int pointer = 0;
-            for(int i = myFsSuperBlock->FAT; i < myFsSuperBlock->root; i++, pointer++) {
+            for(int i = myFsSuperBlock.FAT; i < myFsSuperBlock.root; i++, pointer++) {
                 this->blockDevice->read(i, buffer);
                 memcpy(FAT+pointer, buffer, BLOCK_SIZE);
             }
             pointer = 0;
 
-            /*
-             * Lesen des roots
-             */
-            for(int i = myFsSuperBlock->root; i > myFsSuperBlock->data; i++, pointer++) {
+            for(int i = myFsSuperBlock.root; i > myFsSuperBlock.data; i++, pointer++) {
                 this->blockDevice->read(i, buffer);
                 memcpy(root+pointer, buffer, BLOCK_SIZE);
             }
-
-            free(buffer);
-
 
         } else if(ret == -ENOENT) {
             LOG("Container file does not exist, creating a new one");
@@ -342,22 +352,25 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
             ret = this->blockDevice->create(((MyFsInfo *) fuse_get_context()->private_data)->contFile);
 
             if (ret >= 0) {
-                myFsSuperBlock = new MyFsSuperBlock();
                 char* buffer = new char[BLOCK_SIZE];
-                memcpy(buffer, myFsSuperBlock, BLOCK_SIZE);
+                MyFsSuperBlock fs {};
+                memcpy(buffer, &myFsSuperBlock, BLOCK_SIZE);
 
                 this->blockDevice->write(0, buffer);
+
+
                 free(buffer);
 
                 //FAT schreiben
-                char* b = new char[sizeof(int)*NUM_BLOCK_SUM];
+                char* b = new char[sizeof(int)*NUM_DATA_BLOCKS];
 
-                for (int i = 0; i < NUM_BLOCK_SUM; ++i) {
+                for(int i = 0; i < NUM_DATA_BLOCKS; ++i) {
                     FAT[i]=0;
                 }
-                memcpy(b, FAT, sizeof(int)*NUM_BLOCK_SUM);
-                for(int i = 0; i< NUM_BLOCK_SUM; i++) {
-                    this->blockDevice->write(i, b+i);
+
+                memcpy(b, FAT, sizeof(int)*NUM_DATA_BLOCKS);
+                for(int i = 0; i< NUM_DATA_BLOCKS; i++) {
+                    this->blockDevice->write(i+myFsSuperBlock.FAT, b+i);
                 }
                 free(b);
 
@@ -366,7 +379,7 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 memcpy(r, root, sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES);
                 int size = sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES/512;
                 for(int i = 0; i<size; i++) {
-                    this->blockDevice->write(i, r+i);
+                    this->blockDevice->write(i+myFsSuperBlock.root, r+i);
                 }
 
                 free(r);
@@ -392,6 +405,16 @@ void MyOnDiskFS::fuseDestroy() {
 }
 
 // TODO: [PART 2] You may add your own additional methods here!
+
+int MyOnDiskFS::findFile(const char *nameToFind) {
+    int index = 0;
+    for(auto i = 0; i < NUM_DIR_ENTRIES; i++, index++) {
+        if (strcmp(root[i].name, nameToFind) == 0) {
+            return index;
+        }
+    }
+    return -1;
+}
 
 // DO NOT EDIT ANYTHING BELOW THIS LINE!!!
 

@@ -10,21 +10,24 @@
 #include <cstdio>
 #include <ctime>
 #include <unistd.h>
+#include <cmath>
 
 #ifndef myfs_structs_h
 #define myfs_structs_h
 
-#define NAME_LENGTH 255
 #define BLOCK_SIZE 512
+#define SIZE_MiB 20
+#define SIZE_BYTE (SIZE_MiB<<20)
+
+#define NUM_DATA_BLOCKS ((int) (SIZE_BYTE / BLOCK_SIZE))
+
+#define NAME_LENGTH 255
+
 #define NUM_DIR_ENTRIES 64
 #define NUM_OPEN_FILES 64
-#define NUM_DATA_BLOCKS 2097152 ///Block count of dataBlocks
-#define NUM_FETA_BLOCKS 65536 ///Block count of Fat
 
-
-#define NUM_BLOCK_SUM 2500000
-#define EMPTY_BLOCK 0x00000000
-#define EOF_BLOCK 0xFFFFFFFF
+#define EMPTY_BLOCK (-2)
+#define EOF_BLOCK (-1)
 
 
 /*!
@@ -82,8 +85,8 @@ struct MyFsFileOnMemory : MyFsFile {
  */
 struct MyFsSuperBlock {
     int32_t FAT = (sizeof(MyFsSuperBlock)/BLOCK_SIZE)+1;
-    int32_t root = FAT + (32*2500000/512);
-    int32_t data = root + (sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES/512);
+    int32_t root = FAT + (NUM_DATA_BLOCKS*sizeof(int)/BLOCK_SIZE);
+    int32_t data = root + (sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES/BLOCK_SIZE);
 };
 
 /* Structure: |SuperBlock|FAT|ROOT|DATA|

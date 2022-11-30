@@ -43,6 +43,7 @@ public:
 
     // TODO: Add methods of your file system here
 
+    int findFile(const char *nameToFind);
 };
 
 #endif //MYFS_MYONDISKFS_H
