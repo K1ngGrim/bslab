@@ -23,6 +23,10 @@
 #include "myfs-info.h"
 #include "blockdevice.h"
 
+int *FAT;
+MyFsFileOnMemory *root;
+MyFsSuperBlock *myFsSuperBlock;
+
 /// @brief Constructor of the on-disk file system class.
 ///
 /// You may add your own constructor code here.
@@ -274,6 +278,7 @@ int MyOnDiskFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t filler,
 void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
     // Open logfile
     this->logFile= fopen(((MyFsInfo *) fuse_get_context()->private_data)->logFile, "w+");
+
     if(this->logFile == NULL) {
         fprintf(stderr, "ERROR: Cannot open logfile %s\n", ((MyFsInfo *) fuse_get_context()->private_data)->logFile);
     } else {
@@ -286,12 +291,50 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
 
         LOGF("Container file name: %s", ((MyFsInfo *) fuse_get_context()->private_data)->contFile);
 
+        FAT = new int[NUM_BLOCK_SUM];
+        myFsSuperBlock = new MyFsSuperBlock();
+        root = new MyFsFileOnMemory[NUM_DIR_ENTRIES];
+
+
         int ret= this->blockDevice->open(((MyFsInfo *) fuse_get_context()->private_data)->contFile);
 
         if(ret >= 0) {
             LOG("Container file does exist, reading");
 
             // TODO: [PART 2] Read existing structures form file
+            /*!
+             * Lesen der Blöcke Superblock und Fat. Einlesen in die vorhandenen Arrays
+             */
+            char* buffer = new char[BLOCK_SIZE];
+
+            //Block mit der nummer 0 lesen
+            this->blockDevice->read(0, buffer);
+            //Block 0 in superblock schreiben
+            memcpy(myFsSuperBlock, buffer, sizeof(MyFsSuperBlock));
+
+            /* Lesen des FATS
+             * Wir lesen von superBlock.Fat aus jeden Block einzeln in Buffer.
+             * Von Buffer kopieren wir diesen gelesenen Block in fatBuffer, der so groß ist, wie das Fat int Array
+             * Am Ende kopieren wir alles vom FatBuffer in den richtigen FAT
+             */
+
+            int pointer = 0;
+            for(int i = myFsSuperBlock->FAT; i < myFsSuperBlock->root; i++, pointer++) {
+                this->blockDevice->read(i, buffer);
+                memcpy(FAT+pointer, buffer, BLOCK_SIZE);
+            }
+            pointer = 0;
+
+            /*
+             * Lesen des roots
+             */
+            for(int i = myFsSuperBlock->root; i > myFsSuperBlock->data; i++, pointer++) {
+                this->blockDevice->read(i, buffer);
+                memcpy(root+pointer, buffer, BLOCK_SIZE);
+            }
+
+            free(buffer);
+
 
         } else if(ret == -ENOENT) {
             LOG("Container file does not exist, creating a new one");
@@ -299,9 +342,34 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
             ret = this->blockDevice->create(((MyFsInfo *) fuse_get_context()->private_data)->contFile);
 
             if (ret >= 0) {
+                myFsSuperBlock = new MyFsSuperBlock();
+                char* buffer = new char[BLOCK_SIZE];
+                memcpy(buffer, myFsSuperBlock, BLOCK_SIZE);
 
-                // TODO: [PART 2] Create empty structures in file
+                this->blockDevice->write(0, buffer);
+                free(buffer);
 
+                //FAT schreiben
+                char* b = new char[sizeof(int)*NUM_BLOCK_SUM];
+
+                for (int i = 0; i < NUM_BLOCK_SUM; ++i) {
+                    FAT[i]=0;
+                }
+                memcpy(b, FAT, sizeof(int)*NUM_BLOCK_SUM);
+                for(int i = 0; i< NUM_BLOCK_SUM; i++) {
+                    this->blockDevice->write(i, b+i);
+                }
+                free(b);
+
+                //Root schreiben
+                char* r = new char[sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES];
+                memcpy(r, root, sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES);
+                int size = sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES/512;
+                for(int i = 0; i<size; i++) {
+                    this->blockDevice->write(i, r+i);
+                }
+
+                free(r);
             }
         }
 

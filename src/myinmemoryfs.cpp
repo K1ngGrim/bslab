@@ -38,7 +38,7 @@
 #include "blockdevice.h"
 
 ///@brief Array of files in MyInMemoryFS
-MyFsFile *directory = new MyFsFile[NUM_DIR_ENTRIES];
+MyFsFileInMemory *directory = new MyFsFileInMemory[NUM_DIR_ENTRIES];
 int openFileCount = 0;
 
 /// @brief Constructor of the in-memory file system class.
@@ -432,8 +432,6 @@ void MyInMemoryFS::fuseDestroy() {
     LOGM();
     free(directory);
 }
-
-// TODO: [PART 1] You may add your own additional methods here!
 
 /// Search a file in the directory based on the name and return its index.
 ///
