@@ -26,6 +26,7 @@
 int FAT[NUM_DATA_BLOCKS] = {};
 MyFsFileOnMemory root[NUM_DIR_ENTRIES] = {};
 MyFsSuperBlock myFsSuperBlock = MyFsSuperBlock();
+int openFiles = 0;
 
 /// @brief Constructor of the on-disk file system class.
 ///
@@ -58,9 +59,35 @@ MyOnDiskFS::~MyOnDiskFS() {
 int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     LOGM();
 
-    // TODO: [PART 2] Implement this!
+    int result = 0;
 
-    RETURN(0);
+    for(auto i = 0; i < NUM_DIR_ENTRIES; i++) {
+        if (strcmp(root[i].name, path + 1) == 0 || strlen(path + 1) > NAME_LENGTH) {
+            result = -EEXIST;
+            break;
+        }
+        if (strcmp(root[i].name, "") == 0) {
+            int firstBlockIndex = findEmptyBlock();
+
+            strcpy(root[i].name, path + 1);
+            root[i].size = 0;
+            root[i].mode = mode; //Necessary for generating a File
+            root[i].group_id = getgid();
+            root[i].user_id = getuid();
+            root[i].mtime = time(nullptr);
+            root[i].atime = time(nullptr);
+            root[i].ctime = time(nullptr);
+            root[i].firstBlock = firstBlockIndex;
+            FAT[firstBlockIndex] = EOC_BLOCK;
+            break;
+        }
+    }
+
+    if(result == 0) {
+        Save();
+    }
+
+    RETURN(result)
 }
 
 /// @brief Delete a file.
@@ -71,10 +98,15 @@ int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
 /// \return 0 on success, -ERRNO on failure.
 int MyOnDiskFS::fuseUnlink(const char *path) {
     LOGM();
-
-    // TODO: [PART 2] Implement this!
-
-    RETURN(0);
+    int result = 0;
+    int index = findFile(path + 1);
+    if (index >= 0) {
+        root[index].size = -1;
+        strcpy(root[index].name, "");
+    } else {
+        result = -ENOENT;
+    }
+    RETURN(result)
 }
 
 /// @brief Rename a file.
@@ -88,10 +120,15 @@ int MyOnDiskFS::fuseUnlink(const char *path) {
 /// \return 0 on success, -ERRNO on failure.
 int MyOnDiskFS::fuseRename(const char *path, const char *newpath) {
     LOGM();
+    int result = 0;
+    int index = findFile(path + 1);
+    if (index >= 0) {
+        strcpy(root[index].name, newpath + 1);
+    } else {
+        result = -ENOENT;
+    }
 
-    // TODO: [PART 2] Implement this!
-
-    RETURN(0);
+    RETURN(result)
 }
 
 /// @brief Get file meta data.
@@ -139,10 +176,16 @@ int MyOnDiskFS::fuseGetattr(const char *path, struct stat *statbuf) {
 /// \return 0 on success, -ERRNO on failure.
 int MyOnDiskFS::fuseChmod(const char *path, mode_t mode) {
     LOGM();
+    int result = 0;
+    int index = findFile(path + 1);
+    if (index >= 0) {
+        root[index].mode = mode;
+        root[index].atime = root[index].mtime = time(nullptr);
+    } else {
+        result = -ENOENT;
+    }
 
-    // TODO: [PART 2] Implement this!
-
-    RETURN(0);
+    RETURN(result)
 }
 
 /// @brief Change the owner of a file.
@@ -155,10 +198,17 @@ int MyOnDiskFS::fuseChmod(const char *path, mode_t mode) {
 /// \return 0 on success, -ERRNO on failure.
 int MyOnDiskFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
     LOGM();
+    int result = 0;
+    int index = findFile(path + 1);
+    if (index >= 0) {
+        root[index].user_id = uid;
+        root[index].group_id = gid;
+        root[index].atime = root[index].mtime = time(nullptr);
+    } else {
+        result = -ENOENT;
+    }
 
-    // TODO: [PART 2] Implement this!
-
-    RETURN(0);
+    RETURN(result)
 }
 
 /// @brief Open a file.
@@ -171,10 +221,17 @@ int MyOnDiskFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
 /// \return 0 on success, -ERRNO on failure.
 int MyOnDiskFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
     LOGM();
+    int result = 0;
+    int index = findFile(path + 1);
+    if (index >= 0) {
+        openFiles++;
+        fileInfo->fh = index;
+        root[index].atime = time(nullptr);
+    } else {
+        result = -ENOENT;
+    }
 
-    // TODO: [PART 2] Implement this!
-
-    RETURN(0);
+    RETURN(result)
 }
 
 /// @brief Read from a file.
@@ -285,9 +342,21 @@ int MyOnDiskFS::fuseTruncate(const char *path, off_t newSize, struct fuse_file_i
 int MyOnDiskFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fileInfo) {
     LOGM();
 
-    // TODO: [PART 2] Implement this!
+    filler(buf, ".", nullptr, 0); // Current Directory
+    filler(buf, "..", nullptr, 0); // Parent Directory
+    struct stat stat = {};
 
-    RETURN(0);
+    if (strcmp(path, "/") ==
+        0) // If the user is trying to show the files/directories of the root directory show the following
+    {
+        for(auto i = 0; i < NUM_DIR_ENTRIES; i++) {
+            if (strcmp(root[i].name, "") != 0 && root[i].size != -1) {
+                fuseGetattr(path, &stat);
+                filler(buf, root[i].name, &stat, 0);
+            }
+        }
+    }
+    RETURN(0)
 }
 
 /// Initialize a file system.
@@ -317,8 +386,6 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
 
         if(ret >= 0) {
             LOG("Container file does exist, reading");
-
-            // TODO: [PART 2] Read existing structures form file
             /*!
              * Lesen der Blöcke Superblock und Fat. Einlesen in die vorhandenen Arrays
              */
@@ -339,13 +406,16 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 this->blockDevice->read(i, buffer);
                 memcpy(FAT+pointer, buffer, BLOCK_SIZE);
             }
-            pointer = 0;
 
-            for(int i = myFsSuperBlock.root; i > myFsSuperBlock.data; i++, pointer++) {
-                this->blockDevice->read(i, buffer);
-                memcpy(root+pointer, buffer, BLOCK_SIZE);
+            int bufferSize = sizeof(MyFsFileOnMemory) * NUM_DIR_ENTRIES;
+            char* rootBuffer = new char[bufferSize];
+            int size = sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES/BLOCK_SIZE;
+            for(int i = 0; i < size; i++) {
+                this->blockDevice->read(i+myFsSuperBlock.root, &rootBuffer[i*BLOCK_SIZE]);
             }
+            memcpy(&root, rootBuffer, bufferSize);
 
+            free(rootBuffer);
         } else if(ret == -ENOENT) {
             LOG("Container file does not exist, creating a new one");
 
@@ -362,12 +432,13 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 free(buffer);
 
                 //FAT schreiben
-                char* b = new char[sizeof(int)*NUM_DATA_BLOCKS];
+
 
                 for(int i = 0; i < NUM_DATA_BLOCKS; ++i) {
-                    FAT[i]=0;
+                    FAT[i]=EMPTY_BLOCK;
                 }
 
+                char* b = new char[sizeof(int)*NUM_DATA_BLOCKS];
                 memcpy(b, FAT, sizeof(int)*NUM_DATA_BLOCKS);
                 for(int i = 0; i< NUM_DATA_BLOCKS; i++) {
                     this->blockDevice->write(i+myFsSuperBlock.FAT, b+i);
@@ -375,14 +446,19 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 free(b);
 
                 //Root schreiben
-                char* r = new char[sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES];
-                memcpy(r, root, sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES);
-                int size = sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES/512;
-                for(int i = 0; i<size; i++) {
-                    this->blockDevice->write(i+myFsSuperBlock.root, r+i);
+                //char* r = new char[sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES];
+
+                int bufferSize = sizeof(MyFsFileOnMemory) * NUM_DIR_ENTRIES;
+                buffer = new char[bufferSize];
+                memcpy(buffer, root, bufferSize);
+
+                int blocksToWrite = ((int) bufferSize / BLOCK_SIZE) + 1;
+                LOGF("%d", myFsSuperBlock.root);
+                for(int i = myFsSuperBlock.root; i < myFsSuperBlock.root + blocksToWrite; i++) {
+                    this->blockDevice->write(i, buffer+(BLOCK_SIZE*i));
                 }
 
-                free(r);
+                free(buffer);
             }
         }
 
@@ -415,6 +491,53 @@ int MyOnDiskFS::findFile(const char *nameToFind) {
     }
     return -1;
 }
+
+int MyOnDiskFS::findEmptyBlock() {
+    int index = -1;
+    for(auto i = 0; i< NUM_DATA_BLOCKS; i++) {
+        if(FAT[i] == EMPTY_BLOCK) {
+            index = i;
+            break;
+        }
+    }
+    return index;
+}
+
+/*!
+ * @brief Saves Root, FAT
+ * @return 0 on success
+ */
+int MyOnDiskFS::Save() {
+
+    //Saves FAT
+    char* b = new char[sizeof(int)*NUM_DATA_BLOCKS];
+    memcpy(b, FAT, sizeof(int)*NUM_DATA_BLOCKS);
+    for(int i = 0; i< NUM_DATA_BLOCKS; i++) {
+        this->blockDevice->write(i+myFsSuperBlock.FAT, b+(i*BLOCK_SIZE));
+    }
+    free(b);
+    char ro[sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES] = {};
+    memcpy(ro, root, sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES);
+    int size = sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES/BLOCK_SIZE;
+    for(int i = 0; i<size; i++) {
+        this->blockDevice->write(i+myFsSuperBlock.root, &ro[i*BLOCK_SIZE]);
+    }
+    return 0;
+}
+
+int MyOnDiskFS::SaveRoot() {
+    int bufferSize = sizeof(MyFsFileOnMemory) * NUM_DIR_ENTRIES;
+    char* buffer = new char[bufferSize];
+    memcpy(buffer, root, bufferSize);
+    int size = sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES/BLOCK_SIZE;
+    for(int i = 0; i < size; i++) {
+        this->blockDevice->write(i+myFsSuperBlock.root, &buffer[i*BLOCK_SIZE]);
+    }
+    free(buffer);
+    return 0;
+}
+
+
 
 // DO NOT EDIT ANYTHING BELOW THIS LINE!!!
 

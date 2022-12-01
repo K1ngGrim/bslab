@@ -27,7 +27,7 @@
 #define NUM_OPEN_FILES 64
 
 #define EMPTY_BLOCK (-2)
-#define EOF_BLOCK (-1)
+#define EOC_BLOCK (-1)
 
 
 /*!
