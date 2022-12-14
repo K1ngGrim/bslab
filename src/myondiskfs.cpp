@@ -254,7 +254,7 @@ int MyOnDiskFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
 int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
     LOGM();
     this->blockDevice->read(fatToAddress(root[fileInfo->fh].firstBlock), buf);
-    RETURN(0);
+    RETURN((int)size);
 }
 
 /// @brief Write to a file.
@@ -275,14 +275,10 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
 int MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
     LOGM();
 
-    char *content = new char[size];
-    readData(root[fileInfo->fh], content);
-    fuseTruncate(path, offset+size);
-    memcpy(content+offset, buf, size);
-    writeData(root[fileInfo->fh], content, root[fileInfo->fh].size);
+    char *content = new char[BLOCK_SIZE];
+    fuseTruncate(path, offset+size, fileInfo);
+    memcpy(content, buf, size);
     this->blockDevice->write(fatToAddress(root[fileInfo->fh].firstBlock), content);
-
-    free(content);
     RETURN((int) size);
 }
 
@@ -294,7 +290,6 @@ int MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t 
 int MyOnDiskFS::fuseRelease(const char *path, struct fuse_file_info *fileInfo) {
     LOGM();
 
-    fileInfo->fh = NULL;
     openFiles--;
     SaveFAT();
     SaveRoot();
@@ -477,32 +472,34 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
 
 
                 free(buffer);
+                //Set every Fat entry to Empty_Block
+                //memset(FAT, EMPTY_BLOCK, NUM_DATA_BLOCKS);
 
-                for(int i = 0; i < NUM_DATA_BLOCKS; ++i) {
-                    FAT[i]=EMPTY_BLOCK;
-                }
+                int fatSize = sizeof(int)*NUM_DATA_BLOCKS;
+                char* b = new char[fatSize];
+                memset(b, 'B', sizeof(int)*NUM_DATA_BLOCKS);
+                //memcpy(b, FAT, sizeof(int)*NUM_DATA_BLOCKS);
 
-                char* b = new char[sizeof(int)*NUM_DATA_BLOCKS];
-                memcpy(b, FAT, sizeof(int)*NUM_DATA_BLOCKS);
-                for(int i = 0; i< NUM_DATA_BLOCKS; i++) {
-                    this->blockDevice->write(i+myFsSuperBlock.FAT, b+i);
+                for(int i = 0; i< fatSize/BLOCK_SIZE; i++) {
+                    this->blockDevice->write(i+myFsSuperBlock.FAT, b+(char(BLOCK_SIZE*i)));
                 }
                 free(b);
 
                 //Root schreiben
                 //char* r = new char[sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES];
 
-                int bufferSize = sizeof(MyFsFileOnMemory) * NUM_DIR_ENTRIES;
-                buffer = new char[bufferSize];
-                memcpy(buffer, root, bufferSize);
+                int rootSize = sizeof(MyFsFileOnMemory) * NUM_DIR_ENTRIES;
+                char* rootBuffer = new char[rootSize];
+                memset(rootBuffer, 'C', rootSize);
+                //memcpy(b, FAT, sizeof(int)*NUM_DATA_BLOCKS);
 
-                int blocksToWrite = ((int) bufferSize / BLOCK_SIZE) + 1;
-                LOGF("%d", myFsSuperBlock.root);
-                for(int i = myFsSuperBlock.root; i < myFsSuperBlock.root + blocksToWrite; i++) {
-                    this->blockDevice->write(i, buffer+(BLOCK_SIZE*i));
+                for(int i = 0; i< rootSize/BLOCK_SIZE; i++) {
+                    this->blockDevice->write(i+myFsSuperBlock.root, rootBuffer+(char(BLOCK_SIZE*i)));
                 }
 
-                free(buffer);
+                printf("Fat: %d, Root: %d, Data: %d", myFsSuperBlock.FAT, myFsSuperBlock.root, myFsSuperBlock.data);
+
+                free(rootBuffer);
             }
         }
 
@@ -520,7 +517,7 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
 void MyOnDiskFS::fuseDestroy() {
     LOGM();
 
-    // TODO: [PART 2] Implement this!
+    this->blockDevice->close();
 
 }
 
@@ -594,10 +591,11 @@ int MyOnDiskFS::SaveFAT() {
         this->blockDevice->write(i+myFsSuperBlock.FAT, b+(i*BLOCK_SIZE));
     }
     free(b);
+    return 0;
 }
 
 int MyOnDiskFS::SaveData(int dataBlockIndex, char*buffer) {
-    return this->blockDevice->write(dataBlockIndex+myFsSuperBlock.data, buffer);
+    return this->blockDevice->write(fatToAddress(dataBlockIndex), buffer);
 }
 
 int MyOnDiskFS::readData(MyFsFileOnMemory fileInfo, char*buffer) {
