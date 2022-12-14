@@ -44,11 +44,23 @@ public:
     // TODO: Add methods of your file system here
 
     int findFile(const char *nameToFind);
-    int findEmptyBlock();
+    int findEmptyDataBlock();
 
     int Save();
 
     int SaveRoot();
+
+    int SaveFAT();
+
+    int SaveData(int blockIndex, char *buffer);
+
+    int readData(MyFsFileOnMemory fileInfo, char *buffer);
+
+    int findEOC(int firstBlock);
+
+    int fatToAddress(int fatIndex);
+
+    int writeData(MyFsFileOnMemory fileInfo, char *buffer, int size);
 };
 
 #endif //MYFS_MYONDISKFS_H

@@ -343,6 +343,10 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize) {
     LOGM();
     int result = 0;
 
+
+
+
+
     for(auto i = 0; i < NUM_DIR_ENTRIES; i++) {
         if (strcmp(directory[i].name, path + 1) == 0) {
             directory[i].data = static_cast<char *>(realloc(directory[i].data, newSize));
