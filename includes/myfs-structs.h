@@ -16,7 +16,7 @@
 #define myfs_structs_h
 
 #define BLOCK_SIZE 512
-#define SIZE_MiB 20
+#define SIZE_MiB 100
 #define SIZE_BYTE (SIZE_MiB<<20)
 
 #define NUM_DATA_BLOCKS ((int) (SIZE_BYTE / BLOCK_SIZE))

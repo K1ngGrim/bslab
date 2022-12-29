@@ -52,15 +52,13 @@ public:
 
     int SaveFAT();
 
-    int SaveData(int blockIndex, char *buffer);
-
-    int readData(MyFsFileOnMemory fileInfo, char *buffer);
-
     int findEOC(int firstBlock);
 
     int fatToAddress(int fatIndex);
 
-    int writeData(MyFsFileOnMemory fileInfo, char *buffer, int size);
+    int ReadData(int fatIndex, char *buffer);
+
+    int WriteData(int dataBlockIndex, char *buffer);
 };
 
 #endif //MYFS_MYONDISKFS_H

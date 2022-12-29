@@ -4,6 +4,7 @@
 //
 
 #include "myondiskfs.h"
+#include <cmath>
 
 // For documentation of FUSE methods see https://libfuse.github.io/doxygen/structfuse__operations.html
 
@@ -101,11 +102,19 @@ int MyOnDiskFS::fuseUnlink(const char *path) {
     int result = 0;
     int index = findFile(path + 1);
     if (index >= 0) {
-        root[index].size = -1;
+        int fileIndex = findFile(path+1);
+        if(fileIndex >= 0) {
+            auto*fileInfo = new fuse_file_info();
+            fileInfo->fh = fileIndex;
+            fuseTruncate(path, 0, fileInfo);
+        }
         strcpy(root[index].name, "");
     } else {
         result = -ENOENT;
     }
+
+    SaveRoot();
+    SaveFAT();
     RETURN(result)
 }
 
@@ -128,6 +137,7 @@ int MyOnDiskFS::fuseRename(const char *path, const char *newpath) {
         result = -ENOENT;
     }
 
+    SaveRoot();
     RETURN(result)
 }
 
@@ -185,6 +195,7 @@ int MyOnDiskFS::fuseChmod(const char *path, mode_t mode) {
         result = -ENOENT;
     }
 
+    SaveRoot();
     RETURN(result)
 }
 
@@ -208,6 +219,7 @@ int MyOnDiskFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
         result = -ENOENT;
     }
 
+    SaveRoot();
     RETURN(result)
 }
 
@@ -253,7 +265,51 @@ int MyOnDiskFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
 /// -ERRNO on failure.
 int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
     LOGM();
-    this->blockDevice->read(fatToAddress(root[fileInfo->fh].firstBlock), buf);
+
+    if(root[fileInfo->fh].firstBlock < 0) return 0;
+
+    MyFsFileOnMemory file = (root[fileInfo->fh]);
+
+    /*
+     * Es soll nicht immer die ganze File gelesen werden, das offset sagt, wo wir starten.
+     * Heißt wir müssen bis zum anfangsblock laufen bzw. diesen erstmal finden.
+     */
+
+    int startBlock = floor(offset / BLOCK_SIZE); //Startblock berechnen (0 = firstBlock, 1 = secondBlock...) Berechnet nicht den genauen Block, sondern der wievielte Block beginnt
+    int blockIndex = file.firstBlock;
+    for(int i = 0; i < startBlock; i++) {
+        blockIndex = FAT[blockIndex];
+        if(blockIndex == EOC_BLOCK) return -ENOENT;
+    }
+
+    /*
+     * Nun müssen die daten aus den blöcken gelesen werden. Der Buffer muss mindestens die größe von ceil(size/BLOCK_SIZE)*BLOCK_SIZE haben.
+     * Aus folgendem Grund: liegt das offset in der mitte eines Blocks, so muss durch das Blockdevice trotzdem der ganze Block gelesen werden.
+     * Die Bytes vor dem Offset, die aber im selben Block sind, müssen später mit einem memcpy wieder "abgeschnitten" werden
+     */
+
+    char* contentBuffer = new char[(int) ceil(size/BLOCK_SIZE)*BLOCK_SIZE];
+
+    //Eine Do-While Schleife sorgt für das Lesen. Das Lesen starten wir bei blockIndex
+
+    char* blockBuffer = new char[BLOCK_SIZE]; //Ein Buffer, der einen vom blockDevice gelesenen Block speichert
+    int step = 0; //Wie viele Schritte sind wir bereits durch die FAT gegangen
+    do {
+        ReadData(blockIndex, blockBuffer); //Einen Block lesen
+        memcpy(contentBuffer+(BLOCK_SIZE*step), blockBuffer, BLOCK_SIZE); //Den gelesenen Block im contentBuffer speichern.
+        step++; //Schritte um eins erhöhen.
+        blockIndex = FAT[blockIndex]; // den blockIndex auf nächsten Block in der Fat-kette setzen.
+    }while(blockIndex != EOC_BLOCK); //Abbruchbedingung: neuer Blockindex == EOC_BLOCK
+    //alles steht in contentBuffer drinnen
+
+    /*
+     * Wie viele bytes müssen jetzt im vordersten Block abgeschnitten werden? offset-(firstBlockToRead * BLOCK_SIZE) == offset mod BLOCK_SIZE
+     */
+
+    auto blockOffset = offset % BLOCK_SIZE; //Offset im Block bestimmen.
+
+    memcpy(buf, contentBuffer+(blockOffset), size); //Alles was gelesen werden soll, in den Output Buffer kopieren
+
     RETURN((int)size);
 }
 
@@ -275,10 +331,40 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
 int MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
     LOGM();
 
-    char *content = new char[BLOCK_SIZE];
-    fuseTruncate(path, offset+size, fileInfo);
-    memcpy(content, buf, size);
-    this->blockDevice->write(fatToAddress(root[fileInfo->fh].firstBlock), content);
+    MyFsFileOnMemory file = (root[fileInfo->fh]);
+
+    /*
+     * Es soll nicht immer die ganze File geschrieben werden, das offset sagt, wo wir starten.
+     * Heißt wir müssen bis zum anfangsblock laufen bzw. diesen erstmal finden.
+     */
+
+    fuseTruncate(path, offset+size, fileInfo); //Zuerst passen wir die Filesize an. Da wir sonst eventuell out-of-bounds laufen können.
+
+    int startBlock = floor(offset / BLOCK_SIZE); //Startblock berechnen (0 = firstBlock, 1 = secondBlock...) Berechnet nicht den genauen Block, sondern der wievielte Block beginnt
+    int blockIndex = file.firstBlock;
+    for(int i = 0; i < startBlock; i++) { //Startblock finden!
+        blockIndex = FAT[blockIndex];
+        if(blockIndex == EOC_BLOCK) return -ENOENT;
+    }
+
+    char * content = new char[BLOCK_SIZE];
+
+    auto blockOffset = offset % BLOCK_SIZE;
+
+    if(blockOffset > 0) { //Sollte das offset % BLOCK_SIZE > 0 sein, müssen wir den Startblock lesen, da sich nicht aller inhalt in ihm ändert.
+        ReadData(blockIndex, content);
+    }
+
+    memcpy(content+blockOffset, buf, BLOCK_SIZE);
+
+    int step = 0;
+    do {
+        WriteData(blockIndex, content);
+        step++;
+        memcpy(content, buf+(BLOCK_SIZE*step), BLOCK_SIZE);
+        blockIndex = FAT[blockIndex];
+    }while(blockIndex != EOC_BLOCK);
+
     RETURN((int) size);
 }
 
@@ -309,48 +395,13 @@ int MyOnDiskFS::fuseTruncate(const char *path, off_t newSize) {
     LOGM();
 
     int fileIndex = findFile(path+1);
-    int claimedBlocks = (root[fileIndex].size / BLOCK_SIZE) + 1;
-    int neededBlocks = (newSize / BLOCK_SIZE ) + 1;
-    //newSize > oldSize
-    if(root[fileIndex].size < newSize) {
-        if(claimedBlocks == neededBlocks) {
-            root[fileIndex].size = newSize;
-        }else {
-            //Neue Blöcke reservieren: neededBlocks - claimedBlocks = wieviele blöcke wir zusätzlich brauchen
-
-            int lastBlock = findEOC(root[fileIndex].firstBlock);
-            for(int i = 0; i < neededBlocks - claimedBlocks; i++) {
-                int newBlock = findEmptyDataBlock();
-                FAT[lastBlock] = newBlock;
-                lastBlock = newBlock;
-            }
-            root[fileIndex].size = newSize;
-        }
-    }else if(root[fileIndex].size > newSize) {
-        if(claimedBlocks == neededBlocks) {
-            root[fileIndex].size = newSize;
-            return 0;
-        }else {
-            //EOC verschieben und rest befreien
-            int block = root[fileIndex].firstBlock;
-            for(int i = 1; i < neededBlocks; i++) {
-                block = FAT[block];
-            }
-            int blockToFree = FAT[block];
-            FAT[block] = EOC_BLOCK;
-            int nextBlock = -1;
-            do {
-                if(nextBlock != -1) blockToFree = nextBlock;
-                nextBlock = FAT[blockToFree];
-                FAT[blockToFree] = EMPTY_BLOCK;
-            }while(nextBlock != EOC_BLOCK);
-        }
-
+    if(fileIndex >= 0){
+        auto fileInfo = new fuse_file_info();
+        fileInfo->fh = fileIndex;
+        return fuseTruncate(path, newSize, fileInfo);
     }
 
-    SaveFAT();
-    SaveRoot();
-    RETURN(0);
+    RETURN(-1);
 }
 
 /// @brief Truncate a file.
@@ -366,8 +417,44 @@ int MyOnDiskFS::fuseTruncate(const char *path, off_t newSize) {
 int MyOnDiskFS::fuseTruncate(const char *path, off_t newSize, struct fuse_file_info *fileInfo) {
     LOGM();
 
-    root[fileInfo->fh].size = newSize;
+    int fileIndex = fileInfo->fh;
+    int claimedBlocks = ceil((root[fileIndex].size / BLOCK_SIZE));
+    int neededBlocks = ceil((newSize / BLOCK_SIZE ));
+    //newSize > oldSize
 
+    if (claimedBlocks != neededBlocks) {
+        if(root[fileIndex].size < newSize) {
+            //Neue Blöcke reservieren: neededBlocks - claimedBlocks = wieviele blöcke wir zusätzlich brauchen
+
+            int lastBlock = findEOC(root[fileIndex].firstBlock);
+            for(int i = 0; i < neededBlocks - claimedBlocks; i++) {
+                int newBlock = findEmptyDataBlock();
+                FAT[lastBlock] = newBlock;
+                lastBlock = newBlock;
+
+            }
+            FAT[lastBlock] = EOC_BLOCK;
+        }else if(root[fileIndex].size > newSize){
+            //EOC verschieben und rest befreien
+            int block = root[fileIndex].firstBlock;
+            for(int i = 1; i < neededBlocks; i++) {
+                block = FAT[block];
+            }
+            int blockToFree = FAT[block];
+            FAT[block] = EOC_BLOCK;
+            int nextBlock = -1;
+            do {
+                if(nextBlock != -1) blockToFree = nextBlock;
+                nextBlock = FAT[blockToFree];
+                FAT[blockToFree] = EMPTY_BLOCK;
+            }while(nextBlock != EOC_BLOCK);
+        }
+    }
+    root[fileIndex].size = newSize;
+
+
+    SaveFAT();
+    SaveRoot();
     RETURN(0);
 }
 
@@ -467,39 +554,17 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 char* buffer = new char[BLOCK_SIZE];
                 MyFsSuperBlock fs {};
                 memcpy(buffer, &myFsSuperBlock, BLOCK_SIZE);
-
                 this->blockDevice->write(0, buffer);
-
-
                 free(buffer);
-                //Set every Fat entry to Empty_Block
-                //memset(FAT, EMPTY_BLOCK, NUM_DATA_BLOCKS);
 
-                int fatSize = sizeof(int)*NUM_DATA_BLOCKS;
-                char* b = new char[fatSize];
-                memset(b, 'B', sizeof(int)*NUM_DATA_BLOCKS);
-                //memcpy(b, FAT, sizeof(int)*NUM_DATA_BLOCKS);
-
-                for(int i = 0; i< fatSize/BLOCK_SIZE; i++) {
-                    this->blockDevice->write(i+myFsSuperBlock.FAT, b+(char(BLOCK_SIZE*i)));
+                for(int i = 0; i < NUM_DATA_BLOCKS; ++i) {
+                    FAT[i]=EMPTY_BLOCK;
                 }
-                free(b);
+                SaveFAT();
 
-                //Root schreiben
-                //char* r = new char[sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES];
 
-                int rootSize = sizeof(MyFsFileOnMemory) * NUM_DIR_ENTRIES;
-                char* rootBuffer = new char[rootSize];
-                memset(rootBuffer, 'C', rootSize);
-                //memcpy(b, FAT, sizeof(int)*NUM_DATA_BLOCKS);
-
-                for(int i = 0; i< rootSize/BLOCK_SIZE; i++) {
-                    this->blockDevice->write(i+myFsSuperBlock.root, rootBuffer+(char(BLOCK_SIZE*i)));
-                }
-
+                SaveRoot();
                 printf("Fat: %d, Root: %d, Data: %d", myFsSuperBlock.FAT, myFsSuperBlock.root, myFsSuperBlock.data);
-
-                free(rootBuffer);
             }
         }
 
@@ -575,57 +640,44 @@ int MyOnDiskFS::Save() {
 }
 
 int MyOnDiskFS::SaveRoot() {
-    char ro[sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES] = {};
-    memcpy(ro, root, sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES);
-    int size = sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES/BLOCK_SIZE;
-    for(int i = 0; i<size; i++) {
-        this->blockDevice->write(i+myFsSuperBlock.root, &ro[i*BLOCK_SIZE]);
+    //Root schreiben
+    //char* r = new char[sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES];
+
+    int rootSize = sizeof(MyFsFileOnMemory) * NUM_DIR_ENTRIES;
+    char* rootBuffer = new char[rootSize];
+    memcpy(rootBuffer, root, rootSize);
+
+    for(int i = 0; i< rootSize/BLOCK_SIZE; i++) {
+        this->blockDevice->write(i+myFsSuperBlock.root, rootBuffer+((BLOCK_SIZE*i)));
     }
+    free(rootBuffer);
     return 0;
 }
 
 int MyOnDiskFS::SaveFAT() {
-    char* b = new char[sizeof(int)*NUM_DATA_BLOCKS];
-    memcpy(b, FAT, sizeof(int)*NUM_DATA_BLOCKS);
-    for(int i = 0; i< NUM_DATA_BLOCKS; i++) {
-        this->blockDevice->write(i+myFsSuperBlock.FAT, b+(i*BLOCK_SIZE));
+    int fatSize = sizeof(int)*NUM_DATA_BLOCKS;
+    char* b = new char[fatSize];
+    memcpy(b, FAT, fatSize);
+
+    for(int i = 0; i< fatSize/BLOCK_SIZE; i++) {
+        this->blockDevice->write(i+myFsSuperBlock.FAT, b+((BLOCK_SIZE*i)));
     }
     free(b);
     return 0;
 }
 
-int MyOnDiskFS::SaveData(int dataBlockIndex, char*buffer) {
+int MyOnDiskFS::WriteData(int dataBlockIndex, char*buffer) {
     return this->blockDevice->write(fatToAddress(dataBlockIndex), buffer);
 }
 
-int MyOnDiskFS::readData(MyFsFileOnMemory fileInfo, char*buffer) {
-    if(fileInfo.firstBlock < 0) return -EEXIST;
-
-    int block = fileInfo.firstBlock;
-    int step = 0;
-    do {
-        char* readBuffer = new char[512];
-        this->blockDevice->read(fatToAddress(block), readBuffer);
-        memcpy(buffer + (step*BLOCK_SIZE), readBuffer, BLOCK_SIZE);
-        step+=1;
-        block = FAT[block];
-    }while(block != EOC_BLOCK);
-
-    return 0;
-}
-
-
-int MyOnDiskFS::writeData(MyFsFileOnMemory fileInfo, char*buffer, int size) {
-    int result = 0;
-    int numBlocks = (size/BLOCK_SIZE)+1;
-    int block = fileInfo.firstBlock;
-    for(int i = 0; i < numBlocks; i++) {
-        result = SaveData(block, buffer+(BLOCK_SIZE*i));
-        if(result != 0) return -EEXIST;
-        block = FAT[block];
-        if(block == EOC_BLOCK) break;
-    }
-    return 0;
+/*!
+ * @brief Reads Data from the Containerfile. Translates FAT Array index to real Block number
+ * @param fatIndex: Index of Block in FAT Array. Range(0, NUM_DATA_BLOCKS)
+ * @param buffer : Buffer, where read chars are Stored. Size should at least be BLOCK_SIZE
+ * @return Status. 0 on Success
+ */
+int MyOnDiskFS::ReadData(int fatIndex, char*buffer) {
+    return this->blockDevice->read(fatToAddress(fatIndex), buffer);
 }
 
 int MyOnDiskFS::fatToAddress(int fatIndex) {
