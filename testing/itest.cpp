@@ -325,7 +325,6 @@ TEST_CASE("T-1.07", "[Part_1]") {
 
     // Truncate open file
     REQUIRE(ftruncate(fd, SMALL_SIZE/2) == 0);
-
     // Close file
     REQUIRE(close(fd) >= 0);
 
@@ -340,7 +339,6 @@ TEST_CASE("T-1.07", "[Part_1]") {
     // Check file size
     REQUIRE(stat(FILENAME, &s) == 0);
     REQUIRE(s.st_size == SMALL_SIZE/4);
-
     // remove file
     REQUIRE(unlink(FILENAME) >= 0);
 
