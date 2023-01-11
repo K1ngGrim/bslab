@@ -21,8 +21,6 @@ public:
     MyOnDiskFS();
     ~MyOnDiskFS();
 
-
-
     static void SetInstance();
 
     // --- Methods called by FUSE ---
@@ -45,16 +43,16 @@ public:
 
     // TODO: Add methods of your file system here
 
-    int findFile(const char *nameToFind);
-    int findEmptyDataBlock();
+    static int findFile(const char *nameToFind);
+    static int findEmptyDataBlock();
 
     int SaveRoot();
 
     int SaveFAT();
 
-    int findEOC(int firstBlock);
+    static int findEOC(int firstBlock);
 
-    int fatToAddress(int fatIndex);
+    static int fatToAddress(int fatIndex);
 
     int ReadData(int fatIndex, char *buffer);
 

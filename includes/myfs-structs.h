@@ -24,7 +24,6 @@
 #define NAME_LENGTH 255
 
 #define NUM_DIR_ENTRIES 64
-#define NUM_OPEN_FILES 64
 
 #define EMPTY_BLOCK (-2)
 #define EOC_BLOCK (-1)
@@ -84,20 +83,16 @@ struct MyFsFileOnMemory : MyFsFile {
  * @param DATA: Start of Data
  */
 struct MyFsSuperBlock {
-    int32_t FAT = (sizeof(MyFsSuperBlock)/BLOCK_SIZE)+1;
+    const int32_t FAT = (sizeof(MyFsSuperBlock)/BLOCK_SIZE)+1;
     int32_t root = FAT + (NUM_DATA_BLOCKS*sizeof(int)/BLOCK_SIZE);
     int32_t data = root + (sizeof(MyFsFileOnMemory)*NUM_DIR_ENTRIES/BLOCK_SIZE);
 };
 
-/* Structure: |SuperBlock|FAT|ROOT|DATA|
- * FAT organizes all Blocks => blockSize(SuperBlock) + blockSize(FAT) + blockSize(ROOT) + blockSize(DATA)
- * FAT can store DMAP Data with this type of implementation
- * Empty Blocks get 0x00000000; EOF Blocks get 0xFFFFFFFF
- * Root Block Size: (sizeof MyFsFileOnMemory * 64)/512 = 320*64/512 = 40
- * => 2.500.000 Blocks ca. 1,20 GiB in Sum => FAT = 156.250
- *                                  SP = 1
- *                                  Root = 40
- *                                  => DATA = 2.500.000 - 1 - 40 = 2.343.709 ca. 1,12 GiB
- */
+namespace MyFs_Namespace {
+    extern int openFiles;
+    extern int FAT[NUM_DATA_BLOCKS];
+    extern MyFsFileOnMemory root[NUM_DIR_ENTRIES];
+    extern MyFsSuperBlock myFsSuperBlock;
+}
 
 #endif /* myfs_structs_h */

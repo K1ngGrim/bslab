@@ -19,16 +19,11 @@
 #define DEBUG_RETURN_VALUES
 
 #include <unistd.h>
-#include <string.h>
-#include <errno.h>
 #include <cstdlib>
 
 #include "macros.h"
 #include "myfs.h"
-#include "myfs-info.h"
 #include "blockdevice.h"
-
-// TODO: [PART 2] You may move some helper messages here
 
 // DO NOT EDIT ANYTHING BELOW THIS LINE!!!
 
