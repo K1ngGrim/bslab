@@ -59,10 +59,6 @@ public:
     int ReadData(int fatIndex, char *buffer);
 
     int WriteData(int dataBlockIndex, char *buffer);
-
-    int getFatEntry(int index);
-
-    int setFatEntry(int index, int value);
 };
 
 #endif //MYFS_MYONDISKFS_H

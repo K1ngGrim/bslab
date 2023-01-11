@@ -684,14 +684,6 @@ int MyOnDiskFS::fatToAddress(int fatIndex) {
     return fatIndex + myFsSuperBlock.data;
 }
 
-int MyOnDiskFS::getFatEntry(int index) {
-    return FAT[index];
-}
-
-int MyOnDiskFS::setFatEntry(int index, int value) {
-    FAT[index] = value;
-}
-
 // DO NOT EDIT ANYTHING BELOW THIS LINE!!!
 
 /// @brief Set the static instance of the file system.
